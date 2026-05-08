@@ -39,7 +39,7 @@ async function fetchAndStoreFavicon(
 
     // Google's Favicon API — no key required, returns PNG at requested size.
     // Falls back gracefully to a generic globe icon when no favicon is found.
-    const googleUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
+    const googleUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
 
     const res = await fetch(googleUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CreativeAudit/1.0)' },

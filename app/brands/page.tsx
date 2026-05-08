@@ -170,14 +170,14 @@ export default async function BrandsPage() {
                     <img
                       src={brand.logo_url}
                       alt={brand.name}
-                      style={{ width: 48, height: 48, borderRadius: "12px", objectFit: "contain", flexShrink: 0 }}
+                      style={{ width: 28, height: 28, borderRadius: "6px", objectFit: "contain", flexShrink: 0, imageRendering: "auto" }}
                     />
                   ) : (
                     <div style={{
-                      width: 48, height: 48, borderRadius: "12px",
+                      width: 28, height: 28, borderRadius: "6px",
                       background: bg, border: `1px solid ${color}30`,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "14px", fontWeight: 800, color, flexShrink: 0,
+                      fontSize: "11px", fontWeight: 800, color, flexShrink: 0,
                       letterSpacing: "-0.02em",
                     }}>
                       {initials}

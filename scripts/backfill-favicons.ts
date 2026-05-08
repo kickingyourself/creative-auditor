@@ -88,7 +88,7 @@ async function fetchFaviconBuffer(
     return null;
   }
 
-  const url = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
+  const url = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
 
   try {
     const res = await fetch(url, {
