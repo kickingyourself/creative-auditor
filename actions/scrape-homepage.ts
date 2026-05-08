@@ -110,6 +110,22 @@ export async function scrapeHomepage(
     };
   }
 
+  // Snapshot timestamp — embedded in source_url to make each scrape unique
+  // and displayed as a visible date stamp on the screenshot itself.
+  const snapshotAt = new Date();
+  const snapshotIso = snapshotAt.toISOString(); // e.g. "2025-05-08T23:31:00.000Z"
+  // Human-readable label for the overlay badge, e.g. "May 8, 2025 · 6:31 PM"
+  const snapshotLabel = snapshotAt.toLocaleString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+  // source_url encodes the snapshot time so every row is unique per brand
+  const snapshotUrl = `${targetUrl}?_snapshot=${encodeURIComponent(snapshotIso)}`;
+
   // ── 2. Launch headless Chromium ────────────────────────────────────────────
   // Both playwright-core and @sparticuz/chromium are loaded via dynamic import
   // so they have ZERO presence in the static module graph. This prevents
@@ -181,9 +197,37 @@ export async function scrapeHomepage(
     // Dismiss common cookie / consent banners by pressing Escape
     await page.keyboard.press('Escape').catch(() => {/* non-fatal */ });
 
-    // ── 4. Capture screenshot ────────────────────────────────────────────────
+    // ── 4. Inject date stamp overlay ─────────────────────────────────────────
+    // A fixed-position badge is injected into the live DOM so it appears
+    // baked into the PNG. Styled to be legible on any background.
+    await page.evaluate((label: string) => {
+      const badge = document.createElement('div');
+      badge.id = '__snapshot-badge__';
+      badge.textContent = '📸 ' + label;
+      Object.assign(badge.style, {
+        position:     'fixed',
+        bottom:       '16px',
+        right:        '16px',
+        zIndex:       '2147483647',
+        background:   'rgba(0,0,0,0.72)',
+        color:        '#ffffff',
+        fontFamily:   '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontSize:     '13px',
+        fontWeight:   '600',
+        lineHeight:   '1',
+        padding:      '8px 14px',
+        borderRadius: '8px',
+        backdropFilter: 'blur(4px)',
+        boxShadow:    '0 2px 12px rgba(0,0,0,0.45)',
+        letterSpacing: '0.01em',
+        pointerEvents: 'none',
+        userSelect:   'none',
+      });
+      document.body.appendChild(badge);
+    }, snapshotLabel);
+
+    // ── 5. Capture screenshot ────────────────────────────────────────────────
     // fullPage: false → viewport crop (1440×900) which represents the "hero"
-    // Set to true if you want the entire scrollable page
     const rawBuffer = await page.screenshot({
       type: 'png',
       fullPage: false,
@@ -242,11 +286,13 @@ export async function scrapeHomepage(
   const thumbnailUrl = publicUrlData.publicUrl;
 
   // ── 7. Insert creative row ────────────────────────────────────────────────
+  // source_url uses the timestamped snapshot URL so each scrape of the same
+  // brand homepage creates a new distinct row (no duplicate constraint hits).
   const creativeInsert: CreativeInsert = {
     brand_id: brandId,
     campaign_id: campaignId ?? null,
     platform: 'homepage',
-    source_url: targetUrl,
+    source_url: snapshotUrl,   // includes ?_snapshot=<ISO> for uniqueness
     thumbnail_url: thumbnailUrl,
     view_count: null,
     engagement_rate: null,
@@ -262,14 +308,6 @@ export async function scrapeHomepage(
   const creative = creativeRaw as CreativeRow | null;
 
   if (dbError) {
-    // Unique violation → already scraped this URL for this brand
-    if ((dbError as unknown as { code?: string }).code === '23505') {
-      return {
-        status: 'error',
-        code: 'DUPLICATE_CREATIVE',
-        message: `A creative for "${targetUrl}" already exists for this brand.`,
-      };
-    }
     return {
       status: 'error',
       code: 'DB_INSERT_FAILED',
@@ -281,6 +319,6 @@ export async function scrapeHomepage(
     status: 'success',
     creativeId: creative?.id ?? 'unknown',
     thumbnailUrl: thumbnailUrl,
-    sourceUrl: targetUrl,
+    sourceUrl: targetUrl, // return the clean URL (without snapshot param) for display
   };
 }
