@@ -5,11 +5,20 @@
  *
  * Returns a 1440×900 PNG screenshot of the given URL.
  *
- * IMPORTANT: playwright-core and @sparticuz/chromium are loaded via dynamic
- * import() inside the handler — NOT as top-level imports. This prevents
- * Next.js / Lambda from executing their filesystem setup code at module
- * initialization time, which crashes the function before the handler runs.
+ * Uses @sparticuz/chromium-min (no bundled /bin) + a remote Chromium binary
+ * URL that gets downloaded to /tmp at runtime. This is required on Vercel
+ * because the deployment bundle excludes large binary asset directories.
+ *
+ * playwright-core and @sparticuz/chromium-min are loaded via dynamic import()
+ * so they have zero presence in the static module graph (prevents build-time
+ * bundling failures).
  */
+
+// Remote Chromium binary built for @sparticuz/chromium — matches the version
+// of chromium-min installed (148.0.0). Update this URL when upgrading the package.
+// Source: https://github.com/Sparticuz/chromium/releases
+const CHROMIUM_REMOTE_URL =
+  "https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.tar";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // vercel.json cap takes precedence on Hobby (10s)
@@ -47,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
     if (provided !== expectedToken) return unauthorized();
   }
 
-  // ── Validate URL param ──────────────────────────────────────────────────────
+  // ── Validate URL ────────────────────────────────────────────────────────────
   const { searchParams } = new URL(request.url);
   const rawUrl = searchParams.get("url")?.trim() ?? "";
 
@@ -59,32 +68,33 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   // ── Lazy-load Playwright and Chromium ───────────────────────────────────────
-  // Dynamic imports ensure these modules (and their OS/fs side-effects) are
-  // only executed when this handler is actually invoked, not at module load.
   const { chromium: playwrightChromium } = await import("playwright-core");
-  const { default: chromium } = await import("@sparticuz/chromium");
+  const { default: chromium } = await import("@sparticuz/chromium-min");
 
-  // ── Resolve executable path and args for the current environment ────────────
+  // ── Resolve executable path for the current environment ─────────────────────
   const isLambda =
     !!process.env.AWS_LAMBDA_FUNCTION_NAME ||
     !!process.env.VERCEL ||
     process.env.NODE_ENV === "production";
 
+  // chromium-min requires an explicit remote URL (no bundled /bin directory).
+  // On Lambda/Vercel it downloads + caches the binary in /tmp on first call.
+  // Locally, fall back to PLAYWRIGHT_EXECUTABLE_PATH or the system Chrome.
   const executablePath = isLambda
-    ? await chromium.executablePath()
+    ? await chromium.executablePath(CHROMIUM_REMOTE_URL)
     : process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? undefined;
 
   const launchArgs: string[] = isLambda
     ? chromium.args
     : ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
 
-  // ── Adaptive timeouts based on available function duration ──────────────────
+  // ── Adaptive timeouts ───────────────────────────────────────────────────────
   const maxDurationSec = Number(process.env.VERCEL_MAX_DURATION ?? 10);
   const isHobby = maxDurationSec <= 10;
   const navTimeout = isHobby ? 7_000 : 28_000;
   const settleMs = isHobby ? 400 : 1200;
 
-  // ── Launch browser and capture screenshot ───────────────────────────────────
+  // ── Launch + screenshot ─────────────────────────────────────────────────────
   let browser: Awaited<ReturnType<typeof playwrightChromium.launch>> | null = null;
 
   try {

@@ -122,12 +122,17 @@ export async function scrapeHomepage(
     !!process.env.VERCEL ||
     process.env.NODE_ENV === 'production';
 
+  // chromium-min has no bundled /bin — must supply a remote URL for the binary.
+  // It downloads and caches to /tmp on first Lambda invocation.
+  const CHROMIUM_REMOTE_URL =
+    'https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.tar';
+
   const { default: sparticuzChromium } = isLambda
-    ? await import('@sparticuz/chromium')
+    ? await import('@sparticuz/chromium-min')
     : { default: null };
 
   const executablePath = isLambda && sparticuzChromium
-    ? await sparticuzChromium.executablePath()
+    ? await sparticuzChromium.executablePath(CHROMIUM_REMOTE_URL)
     : process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? undefined;
 
   const launchArgs: string[] = isLambda && sparticuzChromium

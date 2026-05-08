@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
    * they rely on the Node.js file system, child_process, and native binaries.
    * Listing them here tells Next.js to require() them at runtime instead.
    */
-  serverExternalPackages: ["@sparticuz/chromium", "playwright-core"],
+  serverExternalPackages: ["@sparticuz/chromium-min", "playwright-core"],
 };
 
 export default nextConfig;
