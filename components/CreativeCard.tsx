@@ -103,9 +103,10 @@ function extractDomain(url: string): string {
 interface CreativeCardProps {
   creative: Creative;
   index?: number;
+  brandLogoUrl?: string | null;
 }
 
-export function CreativeCard({ creative, index = 0 }: CreativeCardProps) {
+export function CreativeCard({ creative, index = 0, brandLogoUrl }: CreativeCardProps) {
   const platform = PLATFORM_CONFIG[creative.platform];
   const PlatformIcon = platform.icon;
   const AdTypeIcon = AD_TYPE_ICON[creative.ad_type];
@@ -326,9 +327,28 @@ export function CreativeCard({ creative, index = 0 }: CreativeCardProps) {
             }}
           >
             {creative.brand_name && (
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)" }}>
-                {creative.brand_name}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                {brandLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={brandLogoUrl}
+                    alt={creative.brand_name}
+                    style={{ width: 16, height: 16, borderRadius: 3, objectFit: "contain", flexShrink: 0 }}
+                  />
+                ) : (
+                  <div style={{
+                    width: 16, height: 16, borderRadius: 3,
+                    background: platform.bg,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "8px", fontWeight: 800, color: platform.color, flexShrink: 0,
+                  }}>
+                    {creative.brand_name[0]?.toUpperCase()}
+                  </div>
+                )}
+                <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                  {creative.brand_name}
+                </span>
+              </div>
             )}
             <div style={{ display: "flex", alignItems: "center", gap: "5px",
               fontSize: "11px", color: "var(--color-text-muted)" }}>
