@@ -16,7 +16,6 @@
  */
 
 import { chromium } from 'playwright-core';
-import sparticuzChromium from '@sparticuz/chromium';
 import { createClient } from '@supabase/supabase-js';
 import type { Database, CreativeInsert, CreativeRow } from '@/types/database.types';
 
@@ -113,18 +112,22 @@ export async function scrapeHomepage(
   }
 
   // ── 2. Launch headless Chromium ────────────────────────────────────────────
-  // On Vercel/Lambda: @sparticuz/chromium provides a compressed binary that
-  // extracts to /tmp. Locally: falls back to playwright-core's bundled browser.
+  // Dynamic imports: load playwright-core and @sparticuz/chromium lazily so
+  // their OS/fs setup code never runs at module-init time (Lambda crash fix).
   const isLambda =
     !!process.env.AWS_LAMBDA_FUNCTION_NAME ||
     !!process.env.VERCEL ||
     process.env.NODE_ENV === 'production';
 
-  const executablePath = isLambda
+  const { default: sparticuzChromium } = isLambda
+    ? await import('@sparticuz/chromium')
+    : { default: null };
+
+  const executablePath = isLambda && sparticuzChromium
     ? await sparticuzChromium.executablePath()
     : process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? undefined;
 
-  const launchArgs = isLambda
+  const launchArgs: string[] = isLambda && sparticuzChromium
     ? sparticuzChromium.args
     : ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'];
 
