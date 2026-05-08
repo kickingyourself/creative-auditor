@@ -14,11 +14,11 @@
  * bundling failures).
  */
 
-// Remote Chromium binary built for @sparticuz/chromium — matches the version
-// of chromium-min installed (148.0.0). Update this URL when upgrading the package.
-// Source: https://github.com/Sparticuz/chromium/releases
+// Remote Chromium binary — architecture-specific tar from the GitHub release.
+// Vercel Lambda runs on x64 Linux. Update this URL when upgrading chromium-min.
+// Source: https://github.com/Sparticuz/chromium/releases/tag/v148.0.0
 const CHROMIUM_REMOTE_URL =
-  "https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.tar";
+  "https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.x64.tar";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // vercel.json cap takes precedence on Hobby (10s)
@@ -117,7 +117,7 @@ export async function GET(request: Request): Promise<Response> {
 
     await page.goto(targetUrl, { waitUntil: "networkidle", timeout: navTimeout });
     await page.waitForTimeout(settleMs);
-    await page.keyboard.press("Escape").catch(() => {});
+    await page.keyboard.press("Escape").catch(() => { });
 
     const buffer = await page.screenshot({
       type: "png",
@@ -142,6 +142,6 @@ export async function GET(request: Request): Promise<Response> {
       { status: 502 }
     );
   } finally {
-    await browser?.close().catch(() => {});
+    await browser?.close().catch(() => { });
   }
 }

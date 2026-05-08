@@ -84,9 +84,9 @@ export async function scrapeHomepage(
 ): Promise<ScrapeState> {
 
   // ── 1. Extract & validate form data ────────────────────────────────────────
-  const rawUrl     = (formData.get('url') as string | null) ?? '';
+  const rawUrl = (formData.get('url') as string | null) ?? '';
   const rawBrandId = (formData.get('brand_id') as string | null) ?? '';
-  const brandId    = toUuidOrNull(rawBrandId);
+  const brandId = toUuidOrNull(rawBrandId);
   // campaign_id is optional — coerce empty strings / autofilled non-UUIDs to null
   const campaignId = toUuidOrNull(formData.get('campaign_id') as string | null);
 
@@ -125,7 +125,7 @@ export async function scrapeHomepage(
   // chromium-min has no bundled /bin — must supply a remote URL for the binary.
   // It downloads and caches to /tmp on first Lambda invocation.
   const CHROMIUM_REMOTE_URL =
-    'https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.tar';
+    'https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.x64.tar';
 
   const { default: sparticuzChromium } = isLambda
     ? await import('@sparticuz/chromium-min')
@@ -179,7 +179,7 @@ export async function scrapeHomepage(
     await page.waitForTimeout(1500);
 
     // Dismiss common cookie / consent banners by pressing Escape
-    await page.keyboard.press('Escape').catch(() => {/* non-fatal */});
+    await page.keyboard.press('Escape').catch(() => {/* non-fatal */ });
 
     // ── 4. Capture screenshot ────────────────────────────────────────────────
     // fullPage: false → viewport crop (1440×900) which represents the "hero"
@@ -194,7 +194,7 @@ export async function scrapeHomepage(
     await context.close();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    await browser.close().catch(() => {/* ignore cleanup errors */});
+    await browser.close().catch(() => {/* ignore cleanup errors */ });
     return {
       status: 'error',
       code: 'NAVIGATION_FAILED',
@@ -202,7 +202,7 @@ export async function scrapeHomepage(
     };
   } finally {
     // Always close the browser even if we hit an error above
-    await browser.close().catch(() => {/* ignore */});
+    await browser.close().catch(() => {/* ignore */ });
   }
 
   // ── 5. Upload screenshot to Supabase Storage ──────────────────────────────
@@ -243,12 +243,12 @@ export async function scrapeHomepage(
 
   // ── 7. Insert creative row ────────────────────────────────────────────────
   const creativeInsert: CreativeInsert = {
-    brand_id:       brandId,
-    campaign_id:    campaignId ?? null,
-    platform:       'homepage',
-    source_url:     targetUrl,
-    thumbnail_url:  thumbnailUrl,
-    view_count:     null,
+    brand_id: brandId,
+    campaign_id: campaignId ?? null,
+    platform: 'homepage',
+    source_url: targetUrl,
+    thumbnail_url: thumbnailUrl,
+    view_count: null,
     engagement_rate: null,
   };
 
@@ -279,8 +279,8 @@ export async function scrapeHomepage(
 
   return {
     status: 'success',
-    creativeId:   creative?.id ?? 'unknown',
+    creativeId: creative?.id ?? 'unknown',
     thumbnailUrl: thumbnailUrl,
-    sourceUrl:    targetUrl,
+    sourceUrl: targetUrl,
   };
 }
