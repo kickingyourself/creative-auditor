@@ -16,6 +16,7 @@
  */
 
 import { chromium } from 'playwright-core';
+import sparticuzChromium from '@sparticuz/chromium';
 import { createClient } from '@supabase/supabase-js';
 import type { Database, CreativeInsert, CreativeRow } from '@/types/database.types';
 
@@ -112,18 +113,27 @@ export async function scrapeHomepage(
   }
 
   // ── 2. Launch headless Chromium ────────────────────────────────────────────
+  // On Vercel/Lambda: @sparticuz/chromium provides a compressed binary that
+  // extracts to /tmp. Locally: falls back to playwright-core's bundled browser.
+  const isLambda =
+    !!process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    !!process.env.VERCEL ||
+    process.env.NODE_ENV === 'production';
+
+  const executablePath = isLambda
+    ? await sparticuzChromium.executablePath()
+    : process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? undefined;
+
+  const launchArgs = isLambda
+    ? sparticuzChromium.args
+    : ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'];
+
   let browser;
   try {
     browser = await chromium.launch({
       headless: true,
-      // Use the locally installed Playwright Chromium; falls back to system
-      executablePath: chromium.executablePath(),
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled',
-      ],
+      executablePath: executablePath || undefined,
+      args: launchArgs,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
