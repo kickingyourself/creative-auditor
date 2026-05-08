@@ -1,7 +1,7 @@
 /**
- * middleware.ts
+ * proxy.ts  (formerly middleware.ts)
  *
- * Edge middleware — runs before every request.
+ * Next.js 16+ proxy — runs on the Edge before every request.
  * Checks for the site_auth httpOnly cookie. Redirects to /login if missing or invalid.
  * Prevents access to /login when already authenticated.
  */
@@ -18,7 +18,7 @@ const PUBLIC_PREFIXES = [
   "/api",
 ];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // ── 1. Always allow public paths ────────────────────────────────────────────
@@ -51,6 +51,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except Next.js internals and static files
   matcher: ["/((?!_next/static|_next/image|favicon\\.ico).*)"],
 };
