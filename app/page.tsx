@@ -10,7 +10,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { createServerClient } from "@/utils/supabase/server";
 import { Creative } from "@/types";
-import { CreativeCard } from "@/components/CreativeCard";
+import { CreativeGrid } from "@/components/CreativeGrid";
 import { StatCards } from "@/components/StatCards";
 import type { StatCardsData } from "@/components/StatCards";
 
@@ -236,20 +236,7 @@ export default async function DashboardPage() {
 
       {/* Creatives grid */}
       {mapped.length > 0 && (
-        <div
-          id="creatives-grid"
-          className="stagger-children"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: "18px",
-            alignItems: "start",
-          }}
-        >
-          {mapped.map(({ creative, brandLogoUrl }, i) => (
-            <CreativeCard key={creative.id} creative={creative} index={i} brandLogoUrl={brandLogoUrl} />
-          ))}
-        </div>
+        <CreativeGrid items={mapped} />
       )}
     </div>
   );

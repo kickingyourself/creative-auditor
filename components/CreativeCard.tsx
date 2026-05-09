@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { Creative } from "@/types";
 import {
   PlayCircle,
@@ -14,6 +15,9 @@ import {
   TrendingUp,
   Image,
   Camera,
+  Trash2,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 
 const PLATFORM_CONFIG: Record<
@@ -104,14 +108,54 @@ interface CreativeCardProps {
   creative: Creative;
   index?: number;
   brandLogoUrl?: string | null;
+  onDelete?: (id: string) => void;
 }
 
-export function CreativeCard({ creative, index = 0, brandLogoUrl }: CreativeCardProps) {
+export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: CreativeCardProps) {
   const platform = PLATFORM_CONFIG[creative.platform];
   const PlatformIcon = platform.icon;
   const AdTypeIcon = AD_TYPE_ICON[creative.ad_type];
 
+  // ── Delete flow state ──────────────────────────────────────────────────────
+  const [hovered, setHovered]         = useState(false);
+  const [showModal, setShowModal]     = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [isDeleting, setIsDeleting]   = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const confirmed = confirmText.trim().toUpperCase() === "DELETE";
+
+  const openModal = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmText(""); setDeleteError(null); setShowModal(true);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    if (isDeleting) return;
+    setShowModal(false); setConfirmText(""); setDeleteError(null);
+  }, [isDeleting]);
+
+  async function handleDelete() {
+    if (!confirmed || isDeleting) return;
+    setIsDeleting(true); setDeleteError(null);
+    try {
+      const res  = await fetch(`/api/creatives/${creative.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) {
+        setDeleteError(json?.detail ?? json?.error ?? "Delete failed.");
+        setIsDeleting(false);
+        return;
+      }
+      setShowModal(false);
+      onDelete?.(creative.id);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Network error.");
+      setIsDeleting(false);
+    }
+  }
+
   return (
+    <>
     <article
       id={`creative-card-${creative.id}`}
       className="animate-fade-in-up"
@@ -132,12 +176,14 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl }: CreativeCard
         el.style.transform = "translateY(-4px)";
         el.style.borderColor = "rgba(79, 179, 186, 0.35)";
         el.style.boxShadow = "0 8px 32px rgba(79, 179, 186, 0.15)";
+        setHovered(true);
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLElement;
         el.style.transform = "translateY(0)";
         el.style.borderColor = "var(--color-border)";
         el.style.boxShadow = "none";
+        setHovered(false);
       }}
     >
       {/* Thumbnail */}
@@ -225,19 +271,40 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl }: CreativeCard
           {platform.label}
         </div>
 
-        {/* Status dot */}
-        <div
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 10,
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: STATUS_COLORS[creative.status],
-            boxShadow: `0 0 6px ${STATUS_COLORS[creative.status]}`,
-          }}
-        />
+        {/* Top-right controls: delete button + status dot */}
+        <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Delete button — reveals on hover */}
+          <button
+            onClick={openModal}
+            title="Delete creative"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 28,
+              background: "rgba(244,63,94,0.85)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(244,63,94,0.4)",
+              borderRadius: "7px",
+              cursor: "pointer",
+              opacity: hovered ? 1 : 0,
+              transform: hovered ? "scale(1)" : "scale(0.8)",
+              transition: "opacity 180ms ease, transform 180ms ease",
+              pointerEvents: hovered ? "auto" : "none",
+            }}
+          >
+            <Trash2 size={13} color="#fff" />
+          </button>
+
+          {/* Status dot */}
+          <div
+            style={{
+              width: 8, height: 8,
+              borderRadius: "50%",
+              background: STATUS_COLORS[creative.status],
+              boxShadow: `0 0 6px ${STATUS_COLORS[creative.status]}`,
+              flexShrink: 0,
+            }}
+          />
+        </div>
       </div>
 
       {/* Content */}
@@ -378,5 +445,157 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl }: CreativeCard
         </div>
       </div>
     </article>
+
+    {/* ── Delete confirmation modal ──────────────────────────────────────── */}
+    {showModal && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={closeModal}
+        style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(0,0,0,0.65)",
+          backdropFilter: "blur(6px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 20,
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "var(--color-surface)",
+            border: "1px solid rgba(244,63,94,0.25)",
+            borderRadius: 16,
+            padding: 28,
+            maxWidth: 440,
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+            boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+            animation: "deleteModalIn 200ms cubic-bezier(0.34,1.56,0.64,1) both",
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+              background: "rgba(244,63,94,0.12)",
+              border: "1px solid rgba(244,63,94,0.25)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <AlertTriangle size={18} color="#f43f5e" />
+            </div>
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)", lineHeight: 1.3 }}>
+                Delete this creative?
+              </p>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4, lineHeight: 1.5 }}>
+                This permanently removes the asset from the database and storage.
+                <strong style={{ color: "#f43f5e" }}> This cannot be undone.</strong>
+              </p>
+            </div>
+          </div>
+
+          {/* Preview */}
+          {creative.thumbnail_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={creative.thumbnail_url}
+              alt=""
+              style={{
+                width: "100%", height: 120, objectFit: "cover",
+                borderRadius: 8, border: "1px solid var(--color-border)",
+              }}
+            />
+          )}
+
+          {/* Confirmation input */}
+          <div>
+            <label
+              htmlFor={`delete-confirm-${creative.id}`}
+              style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 8 }}
+            >
+              Type <code style={{
+                background: "rgba(244,63,94,0.12)", color: "#f43f5e",
+                padding: "1px 5px", borderRadius: 4, fontFamily: "monospace",
+              }}>DELETE</code> to confirm
+            </label>
+            <input
+              id={`delete-confirm-${creative.id}`}
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && confirmed) handleDelete(); if (e.key === "Escape") closeModal(); }}
+              placeholder="DELETE"
+              autoFocus
+              autoComplete="off"
+              style={{
+                width: "100%", boxSizing: "border-box",
+                background: "var(--color-surface-2)",
+                border: `1px solid ${confirmed ? "rgba(244,63,94,0.6)" : "var(--color-border)"}`,
+                borderRadius: 8, padding: "10px 12px",
+                color: confirmed ? "#f43f5e" : "var(--color-text-primary)",
+                fontSize: 13, fontFamily: "monospace", outline: "none",
+                transition: "border-color 200ms, color 200ms",
+              }}
+            />
+          </div>
+
+          {/* Error */}
+          {deleteError && (
+            <p style={{ fontSize: 12, color: "#f43f5e", background: "rgba(244,63,94,0.08)", padding: "8px 12px", borderRadius: 6 }}>
+              {deleteError}
+            </p>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <button
+              onClick={closeModal}
+              disabled={isDeleting}
+              style={{
+                padding: "9px 18px", borderRadius: 8, border: "1px solid var(--color-border)",
+                background: "none", color: "var(--color-text-secondary)",
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
+                opacity: isDeleting ? 0.4 : 1,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={!confirmed || isDeleting}
+              style={{
+                padding: "9px 18px", borderRadius: 8, border: "none",
+                background: confirmed ? "#f43f5e" : "rgba(244,63,94,0.25)",
+                color: confirmed ? "#fff" : "rgba(255,255,255,0.4)",
+                fontSize: 13, fontWeight: 700,
+                cursor: confirmed && !isDeleting ? "pointer" : "not-allowed",
+                display: "flex", alignItems: "center", gap: 7,
+                transition: "background 200ms",
+                boxShadow: confirmed ? "0 4px 14px rgba(244,63,94,0.35)" : "none",
+              }}
+            >
+              {isDeleting
+                ? <><Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Deleting…</>
+                : <><Trash2 size={13} /> Delete</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <style>{`
+      @keyframes deleteModalIn {
+        from { opacity: 0; transform: scale(0.92) translateY(8px); }
+        to   { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(360deg); }
+      }
+    `}</style>
+    </>
   );
 }
