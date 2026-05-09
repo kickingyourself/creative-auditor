@@ -228,9 +228,22 @@ export function ManualUploadForm() {
 
       try {
         const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const json = await res.json() as UploadResponse;
+
+        let json: UploadResponse;
+        try {
+          json = await res.json() as UploadResponse;
+        } catch {
+          // Response wasn't valid JSON — usually means Vercel rejected the
+          // request before it reached the handler (e.g. 413 payload too large).
+          const statusText = res.status === 413
+            ? `File too large for the server (${res.status}). Try a smaller file or upload directly to storage.`
+            : `Server returned a non-JSON response (HTTP ${res.status}). Check the upload size limit.`;
+          setUploadError(statusText);
+          return;
+        }
+
         setResponse(json);
-        if (json.summary.inserted > 0) {
+        if (json.summary?.inserted > 0) {
           // Clear successfully uploaded files
           setQueue(prev => prev.filter((_, i) => json.results[i]?.status !== "inserted"));
         }

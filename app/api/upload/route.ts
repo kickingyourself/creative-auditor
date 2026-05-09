@@ -64,6 +64,14 @@ function safeFilename(original: string): string {
   return `${base}-${Date.now()}${ext}`;
 }
 
+/** Normalise a MIME type string — strip codec/parameter suffixes that
+ * Supabase Storage's server-side pattern check rejects.
+ * e.g. 'video/mp4; codecs="avc1.42E01E"' → 'video/mp4'
+ */
+function normaliseContentType(raw: string): string {
+  return (raw.split(";")[0] ?? "application/octet-stream").trim().toLowerCase();
+}
+
 /** Derive ad_type from MIME. */
 function mimeToAdType(mime: string): "video" | "image" {
   return mime.startsWith("video/") ? "video" : "image";
@@ -190,13 +198,15 @@ export async function POST(request: Request): Promise<Response> {
     const storagePath = `uploads/${brandId}/${filename}`;
 
     // Upload to Supabase Storage
-    const arrayBuffer = await file.arrayBuffer();
+    // Pass the File object directly (it is a Blob) — avoids loading the entire
+    // video into memory as an ArrayBuffer, which causes OOM kills in serverless
+    // environments and also sidesteps Supabase's ArrayBuffer content-type quirks.
+    const contentType = normaliseContentType(file.type);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const uploadOptions: any = { contentType, upsert: false, duplex: 'half' };
     const { error: uploadErr } = await supabase.storage
       .from(BUCKET)
-      .upload(storagePath, arrayBuffer, {
-        contentType: file.type,
-        upsert: false,
-      });
+      .upload(storagePath, file, uploadOptions);
 
     if (uploadErr) {
       errors++;
