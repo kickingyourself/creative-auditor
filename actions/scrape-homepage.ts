@@ -15,7 +15,6 @@
  *   (prevState: ScrapeState, formData: FormData) => Promise<ScrapeState>
  */
 
-import { chromium } from 'playwright-core';
 import { createClient } from '@supabase/supabase-js';
 import type { Database, CreativeInsert, CreativeRow } from '@/types/database.types';
 
@@ -85,9 +84,9 @@ export async function scrapeHomepage(
 ): Promise<ScrapeState> {
 
   // ── 1. Extract & validate form data ────────────────────────────────────────
-  const rawUrl     = (formData.get('url') as string | null) ?? '';
+  const rawUrl = (formData.get('url') as string | null) ?? '';
   const rawBrandId = (formData.get('brand_id') as string | null) ?? '';
-  const brandId    = toUuidOrNull(rawBrandId);
+  const brandId = toUuidOrNull(rawBrandId);
   // campaign_id is optional — coerce empty strings / autofilled non-UUIDs to null
   const campaignId = toUuidOrNull(formData.get('campaign_id') as string | null);
 
@@ -111,19 +110,57 @@ export async function scrapeHomepage(
     };
   }
 
+  // Snapshot timestamp — embedded in source_url to make each scrape unique
+  // and displayed as a visible date stamp on the screenshot itself.
+  const snapshotAt = new Date();
+  const snapshotIso = snapshotAt.toISOString(); // e.g. "2025-05-08T23:31:00.000Z"
+  // Human-readable label for the overlay badge, e.g. "May 8, 2025 · 6:31 PM"
+  const snapshotLabel = snapshotAt.toLocaleString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+  // source_url encodes the snapshot time so every row is unique per brand
+  const snapshotUrl = `${targetUrl}?_snapshot=${encodeURIComponent(snapshotIso)}`;
+
   // ── 2. Launch headless Chromium ────────────────────────────────────────────
+  // Both playwright-core and @sparticuz/chromium are loaded via dynamic import
+  // so they have ZERO presence in the static module graph. This prevents
+  // Next.js / webpack from attempting to bundle them at build time, which
+  // crashes the entire app (not just the scrape endpoint).
+  const { chromium } = await import('playwright-core');
+
+  const isLambda =
+    !!process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    !!process.env.VERCEL ||
+    process.env.NODE_ENV === 'production';
+
+  // chromium-min has no bundled /bin — must supply a remote URL for the binary.
+  // It downloads and caches to /tmp on first Lambda invocation.
+  const CHROMIUM_REMOTE_URL =
+    'https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.x64.tar';
+
+  const { default: sparticuzChromium } = isLambda
+    ? await import('@sparticuz/chromium-min')
+    : { default: null };
+
+  const executablePath = isLambda && sparticuzChromium
+    ? await sparticuzChromium.executablePath(CHROMIUM_REMOTE_URL)
+    : process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? undefined;
+
+  const launchArgs: string[] = isLambda && sparticuzChromium
+    ? sparticuzChromium.args
+    : ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'];
+
   let browser;
   try {
     browser = await chromium.launch({
       headless: true,
-      // Use the locally installed Playwright Chromium; falls back to system
-      executablePath: chromium.executablePath(),
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled',
-      ],
+      executablePath: executablePath || undefined,
+      args: launchArgs,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -158,11 +195,39 @@ export async function scrapeHomepage(
     await page.waitForTimeout(1500);
 
     // Dismiss common cookie / consent banners by pressing Escape
-    await page.keyboard.press('Escape').catch(() => {/* non-fatal */});
+    await page.keyboard.press('Escape').catch(() => {/* non-fatal */ });
 
-    // ── 4. Capture screenshot ────────────────────────────────────────────────
+    // ── 4. Inject date stamp overlay ─────────────────────────────────────────
+    // A fixed-position badge is injected into the live DOM so it appears
+    // baked into the PNG. Styled to be legible on any background.
+    await page.evaluate((label: string) => {
+      const badge = document.createElement('div');
+      badge.id = '__snapshot-badge__';
+      badge.textContent = '📸 ' + label;
+      Object.assign(badge.style, {
+        position:     'fixed',
+        bottom:       '16px',
+        right:        '16px',
+        zIndex:       '2147483647',
+        background:   'rgba(0,0,0,0.72)',
+        color:        '#ffffff',
+        fontFamily:   '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontSize:     '13px',
+        fontWeight:   '600',
+        lineHeight:   '1',
+        padding:      '8px 14px',
+        borderRadius: '8px',
+        backdropFilter: 'blur(4px)',
+        boxShadow:    '0 2px 12px rgba(0,0,0,0.45)',
+        letterSpacing: '0.01em',
+        pointerEvents: 'none',
+        userSelect:   'none',
+      });
+      document.body.appendChild(badge);
+    }, snapshotLabel);
+
+    // ── 5. Capture screenshot ────────────────────────────────────────────────
     // fullPage: false → viewport crop (1440×900) which represents the "hero"
-    // Set to true if you want the entire scrollable page
     const rawBuffer = await page.screenshot({
       type: 'png',
       fullPage: false,
@@ -173,7 +238,7 @@ export async function scrapeHomepage(
     await context.close();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    await browser.close().catch(() => {/* ignore cleanup errors */});
+    await browser.close().catch(() => {/* ignore cleanup errors */ });
     return {
       status: 'error',
       code: 'NAVIGATION_FAILED',
@@ -181,7 +246,7 @@ export async function scrapeHomepage(
     };
   } finally {
     // Always close the browser even if we hit an error above
-    await browser.close().catch(() => {/* ignore */});
+    await browser.close().catch(() => {/* ignore */ });
   }
 
   // ── 5. Upload screenshot to Supabase Storage ──────────────────────────────
@@ -221,13 +286,15 @@ export async function scrapeHomepage(
   const thumbnailUrl = publicUrlData.publicUrl;
 
   // ── 7. Insert creative row ────────────────────────────────────────────────
+  // source_url uses the timestamped snapshot URL so each scrape of the same
+  // brand homepage creates a new distinct row (no duplicate constraint hits).
   const creativeInsert: CreativeInsert = {
-    brand_id:       brandId,
-    campaign_id:    campaignId ?? null,
-    platform:       'homepage',
-    source_url:     targetUrl,
-    thumbnail_url:  thumbnailUrl,
-    view_count:     null,
+    brand_id: brandId,
+    campaign_id: campaignId ?? null,
+    platform: 'homepage',
+    source_url: snapshotUrl,   // includes ?_snapshot=<ISO> for uniqueness
+    thumbnail_url: thumbnailUrl,
+    view_count: null,
     engagement_rate: null,
   };
 
@@ -241,14 +308,6 @@ export async function scrapeHomepage(
   const creative = creativeRaw as CreativeRow | null;
 
   if (dbError) {
-    // Unique violation → already scraped this URL for this brand
-    if ((dbError as unknown as { code?: string }).code === '23505') {
-      return {
-        status: 'error',
-        code: 'DUPLICATE_CREATIVE',
-        message: `A creative for "${targetUrl}" already exists for this brand.`,
-      };
-    }
     return {
       status: 'error',
       code: 'DB_INSERT_FAILED',
@@ -258,8 +317,8 @@ export async function scrapeHomepage(
 
   return {
     status: 'success',
-    creativeId:   creative?.id ?? 'unknown',
+    creativeId: creative?.id ?? 'unknown',
     thumbnailUrl: thumbnailUrl,
-    sourceUrl:    targetUrl,
+    sourceUrl: targetUrl, // return the clean URL (without snapshot param) for display
   };
 }

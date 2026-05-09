@@ -11,6 +11,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/utils/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 
 // ─── Return type ──────────────────────────────────────────────────────────────
 
@@ -18,6 +20,61 @@ export type AddBrandState =
   | { status: 'idle' }
   | { status: 'success'; brand: { id: string; name: string } }
   | { status: 'error'; code: string; message: string };
+
+// ─── Favicon helper ───────────────────────────────────────────────────────────
+
+/**
+ * Fetches the brand favicon via Google's Favicon API, uploads it to the
+ * `creative-assets` Supabase Storage bucket, and returns the public URL.
+ *
+ * Uses the service-role client for storage writes (bypasses RLS).
+ * Non-throwing — returns null on any failure so brand creation always succeeds.
+ */
+async function fetchAndStoreFavicon(
+  brandId: string,
+  websiteUrl: string
+): Promise<string | null> {
+  try {
+    const domain = new URL(websiteUrl).hostname.replace(/^www\./, '');
+
+    // Google's Favicon API — no key required, returns PNG at requested size.
+    // Falls back gracefully to a generic globe icon when no favicon is found.
+    const googleUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+
+    const res = await fetch(googleUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CreativeAudit/1.0)' },
+      signal: AbortSignal.timeout(8_000),
+    });
+
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') ?? 'image/png';
+    const buffer = Buffer.from(await res.arrayBuffer());
+
+    // Reject tiny responses — Google returns a 16×16 grey globe (≈ 148 bytes)
+    // when it cannot find a real favicon. Skip storing those.
+    if (buffer.byteLength < 200) return null;
+
+    // Service-role client for storage writes
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+    if (!supabaseUrl || !serviceKey) return null;
+
+    const storage = createClient<Database>(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+    const storagePath = `logos/${brandId}/favicon.png`;
+
+    const { error: uploadErr } = await storage
+      .storage
+      .from('creative-assets')
+      .upload(storagePath, buffer, { contentType, upsert: true });
+
+    if (uploadErr) return null;
+
+    const { data } = storage.storage.from('creative-assets').getPublicUrl(storagePath);
+    return data.publicUrl;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
@@ -94,5 +151,18 @@ export async function addBrand(
   revalidatePath('/');  // also refresh dashboard counts
 
   const brand = data as { id: string; name: string };
+
+  // ── 5. Auto-fetch favicon (best-effort, non-blocking) ───────────────────────
+  if (websiteUrl) {
+    const faviconUrl = await fetchAndStoreFavicon(brand.id, websiteUrl);
+    if (faviconUrl) {
+      // Update logo_url — ignore errors (brand was already created successfully)
+      await (supabase
+        .from('brands') as unknown as { update: (v: Record<string, unknown>) => { eq: (col: string, val: string) => Promise<unknown> } })
+        .update({ logo_url: faviconUrl })
+        .eq('id', brand.id);
+    }
+  }
+
   return { status: 'success', brand };
 }

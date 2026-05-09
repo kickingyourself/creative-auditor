@@ -10,7 +10,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { createServerClient } from "@/utils/supabase/server";
 import { Creative } from "@/types";
-import { CreativeCard } from "@/components/CreativeCard";
+import { CreativeGrid } from "@/components/CreativeGrid";
 import { StatCards } from "@/components/StatCards";
 import type { StatCardsData } from "@/components/StatCards";
 
@@ -33,14 +33,15 @@ interface CreativeRow {
   view_count: number | null;
   engagement_rate: number | null;
   created_at: string;
-  brands: { name: string } | null;
+  brands: { name: string; logo_url: string | null } | null;
 }
 
 // ─── Mapper: DB row → Creative card interface ─────────────────────────────────
 
-function toCreative(row: CreativeRow): Creative {
+function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: string | null } {
   const platform = row.platform as Creative["platform"];
   const brandName = row.brands?.name ?? null;
+  const brandLogoUrl = row.brands?.logo_url ?? null;
 
   // Derive a human-readable title from context
   let title = row.source_url;
@@ -64,31 +65,34 @@ function toCreative(row: CreativeRow): Creative {
     row.platform === "homepage" ? "image" : "video";
 
   return {
-    id:              row.id,
-    brand_id:        row.brand_id,
-    brand_name:      brandName,
-    title,
-    platform,
-    source_url:      row.source_url,
-    thumbnail_url:   row.thumbnail_url,
-    video_url:       row.platform === "youtube" ? row.source_url : null,
-    views:           row.view_count,
-    likes:           null,
-    comments:        null,
-    engagement_rate: row.engagement_rate,
-    duration_seconds: null,
-    published_at:    row.created_at,
-    ad_type:         adType,
-    status:          "active",
-    created_at:      row.created_at,
-    updated_at:      row.created_at,
+    creative: {
+      id:              row.id,
+      brand_id:        row.brand_id,
+      brand_name:      brandName,
+      title,
+      platform,
+      source_url:      row.source_url,
+      thumbnail_url:   row.thumbnail_url,
+      video_url:       row.platform === "youtube" ? row.source_url : null,
+      views:           row.view_count,
+      likes:           null,
+      comments:        null,
+      engagement_rate: row.engagement_rate,
+      duration_seconds: null,
+      published_at:    row.created_at,
+      ad_type:         adType,
+      status:          "active",
+      created_at:      row.created_at,
+      updated_at:      row.created_at,
+    },
+    brandLogoUrl,
   };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
-  let creatives: Creative[] = [];
+  let mapped: { creative: Creative; brandLogoUrl: string | null }[] = [];
   let statsData: StatCardsData = {
     totalCreatives: 0,
     totalBrands: 0,
@@ -103,12 +107,12 @@ export default async function DashboardPage() {
     // ── Fetch latest 20 creatives with brand name joined ──────────────────────
     const { data: rows, error: rowsErr } = await supabase
       .from("creatives")
-      .select("id, brand_id, platform, source_url, thumbnail_url, view_count, engagement_rate, created_at, brands(name)")
+      .select("id, brand_id, platform, source_url, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url)")
       .order("created_at", { ascending: false })
       .limit(20);
 
     if (rowsErr) throw rowsErr;
-    creatives = (rows as CreativeRow[]).map(toCreative);
+    mapped = (rows as CreativeRow[]).map(toCreative);
 
     // ── Aggregate stats ───────────────────────────────────────────────────────
     const [
@@ -191,8 +195,8 @@ export default async function DashboardPage() {
             Recent Creatives
           </h2>
           <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
-            {creatives.length > 0
-              ? `Showing ${creatives.length} most recently ingested`
+            {mapped.length > 0
+              ? `Showing ${mapped.length} most recently ingested`
               : "No creatives ingested yet — head to Brands to get started"}
           </p>
         </div>
@@ -216,7 +220,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Empty state */}
-      {creatives.length === 0 && !dbError && (
+      {mapped.length === 0 && !dbError && (
         <div style={{
           padding: "60px 24px", textAlign: "center",
           border: "1px dashed var(--color-border)", borderRadius: "16px",
@@ -231,21 +235,8 @@ export default async function DashboardPage() {
       )}
 
       {/* Creatives grid */}
-      {creatives.length > 0 && (
-        <div
-          id="creatives-grid"
-          className="stagger-children"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: "18px",
-            alignItems: "start",
-          }}
-        >
-          {creatives.map((creative, i) => (
-            <CreativeCard key={creative.id} creative={creative} index={i} />
-          ))}
-        </div>
+      {mapped.length > 0 && (
+        <CreativeGrid items={mapped} />
       )}
     </div>
   );
