@@ -56,7 +56,20 @@ function isVideoFile(mime: string) { return mime.startsWith("video/"); }
 
 /**
  * Seeks a video file to `seekTo` seconds and captures the frame as a JPEG Blob.
- * Returns null if the browser cannot decode the video (unsupported codec, etc.).
+ *
+ * Why the original was blank:
+ *   • preload="metadata" only loads headers — frames are never decoded.
+ *   • canvas.drawImage() after "seeked" runs before the GPU has painted the new
+ *     frame; you capture the previous (black) buffer.
+ *
+ * Fixes:
+ *   1. preload="auto" — forces the browser to decode actual video data.
+ *   2. Wait for "loadeddata" (first frame available) before seeking.
+ *   3. Double requestAnimationFrame after "seeked" — the first rAF queues after
+ *      the video renderer; the second rAF runs after the compositor flushes it.
+ *   4. Safety timeout so we never hang forever on an undecodable clip.
+ *
+ * Returns null if the browser cannot decode the video.
  */
 function generateVideoThumbnail(file: File, seekTo = 1.5): Promise<Blob | null> {
   return new Promise((resolve) => {
@@ -65,28 +78,51 @@ function generateVideoThumbnail(file: File, seekTo = 1.5): Promise<Blob | null> 
     video.src = objectUrl;
     video.muted = true;
     video.playsInline = true;
-    video.preload = "metadata";
+    video.preload = "auto"; // must decode frames, not just headers
 
-    const cleanup = () => URL.revokeObjectURL(objectUrl);
+    let settled = false;
+    const finish = (blob: Blob | null) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(objectUrl);
+      resolve(blob);
+    };
 
-    video.addEventListener("error", () => { cleanup(); resolve(null); }, { once: true });
+    // Safety net — give up after 20 s
+    const timer = setTimeout(() => finish(null), 20_000);
 
-    video.addEventListener("loadedmetadata", () => {
-      // Clamp seek so we never go past the end of very short clips
-      video.currentTime = Math.min(seekTo, Math.max(0, video.duration - 0.1));
-    }, { once: true });
-
-    video.addEventListener("seeked", () => {
+    function captureFrame() {
+      clearTimeout(timer);
+      if (video.videoWidth === 0 || video.videoHeight === 0) { finish(null); return; }
       const canvas = document.createElement("canvas");
-      // Cap at 1280px wide so thumbnails stay compact
-      const scale = Math.min(1, 1280 / Math.max(video.videoWidth, 1));
+      const scale = Math.min(1, 1280 / video.videoWidth);
       canvas.width  = Math.round(video.videoWidth  * scale);
       canvas.height = Math.round(video.videoHeight * scale);
       const ctx = canvas.getContext("2d");
-      if (!ctx) { cleanup(); resolve(null); return; }
+      if (!ctx) { finish(null); return; }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      cleanup();
-      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.82);
+      canvas.toBlob((blob) => finish(blob), "image/jpeg", 0.82);
+    }
+
+    video.addEventListener("error", () => { clearTimeout(timer); finish(null); }, { once: true });
+
+    // loadeddata = first frame is decoded and available (unlike loadedmetadata)
+    video.addEventListener("loadeddata", () => {
+      const target = video.duration > 0
+        ? Math.min(seekTo, video.duration * 0.25) // quarter-point fallback for short clips
+        : 0;
+      if (target > 0) {
+        video.currentTime = target;
+      } else {
+        // Duration unknown or clip is effectively zero-length — capture first frame
+        requestAnimationFrame(() => requestAnimationFrame(captureFrame));
+      }
+    }, { once: true });
+
+    // seeked fires when the decoder has the frame *data*, but the GPU may not
+    // have composited it yet. Double rAF ensures we draw after the paint flush.
+    video.addEventListener("seeked", () => {
+      requestAnimationFrame(() => requestAnimationFrame(captureFrame));
     }, { once: true });
   });
 }
