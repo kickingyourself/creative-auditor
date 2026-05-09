@@ -147,7 +147,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // ── Generate signed upload URLs ─────────────────────────────────────────────
-  const uploads: { signedUrl: string; storagePath: string; token: string; filename: string; originalName: string; contentType: string; platform: string; campaignId: string | null }[] = [];
+  const uploads: { signedUrl: string; storagePath: string; token: string; filename: string; originalName: string; contentType: string; platform: string; campaignId: string | null; thumbnailSignedUrl: string | null; thumbnailStoragePath: string | null }[] = [];
 
   for (const f of files) {
     const filename = safeFilename(f.name);
@@ -161,6 +161,20 @@ export async function POST(request: Request): Promise<Response> {
     if (error || !data)
       return apiError("SUPABASE_INSERT_ERROR", `Could not generate signed URL for "${f.name}": ${error?.message}`);
 
+    // For video files, also generate a signed URL for the thumbnail
+    const isVideo = contentType.startsWith("video/");
+    let thumbnailSignedUrl: string | null = null;
+    let thumbnailStoragePath: string | null = null;
+
+    if (isVideo) {
+      const thumbName = filename.replace(/\.[^.]+$/, "") + "-thumb.jpg";
+      thumbnailStoragePath = `thumbnails/${brandId}/${thumbName}`;
+      const { data: thumbData } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUploadUrl(thumbnailStoragePath);
+      thumbnailSignedUrl = thumbData?.signedUrl ?? null;
+    }
+
     uploads.push({
       signedUrl: data.signedUrl,
       storagePath,
@@ -170,6 +184,8 @@ export async function POST(request: Request): Promise<Response> {
       contentType,
       platform,
       campaignId,
+      thumbnailSignedUrl,
+      thumbnailStoragePath,
     });
   }
 

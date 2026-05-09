@@ -42,11 +42,12 @@ function getSupabase() {
 }
 
 interface RegisterItem {
-  storagePath:  string;
-  contentType:  string;
-  platform:     string;
-  campaignId:   string | null;
-  originalName: string;
+  storagePath:          string;
+  contentType:          string;
+  platform:             string;
+  campaignId:           string | null;
+  originalName:         string;
+  thumbnailStoragePath: string | null;
 }
 
 type FileResult = {
@@ -92,7 +93,13 @@ export async function POST(request: Request): Promise<Response> {
     const publicUrl = publicUrlData.publicUrl;
 
     const adType = item.contentType.startsWith("video/") ? "video" : "image";
-    const thumbnailUrl = adType === "image" ? publicUrl : null;
+    let thumbnailUrl: string | null = null;
+    if (adType === "image") {
+      thumbnailUrl = publicUrl;
+    } else if (item.thumbnailStoragePath) {
+      const { data: tpd } = supabase.storage.from(BUCKET).getPublicUrl(item.thumbnailStoragePath);
+      thumbnailUrl = tpd.publicUrl;
+    }
 
     const creativeInsert = {
       brand_id:        brandId,

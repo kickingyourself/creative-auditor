@@ -11,7 +11,8 @@ import {
 interface QueuedFile {
   id: string;
   file: File;
-  preview: string | null; // object URL for images
+  preview: string | null;      // object URL — images: the file itself; videos: canvas-captured frame
+  thumbnailBlob: Blob | null;  // JPEG blob to upload alongside the video
 }
 
 interface FileResult {
@@ -51,6 +52,44 @@ function fmtBytes(b: number) {
   return `${(b / 1024).toFixed(0)} KB`;
 }
 function isImage(mime: string) { return mime.startsWith("image/"); }
+function isVideoFile(mime: string) { return mime.startsWith("video/"); }
+
+/**
+ * Seeks a video file to `seekTo` seconds and captures the frame as a JPEG Blob.
+ * Returns null if the browser cannot decode the video (unsupported codec, etc.).
+ */
+function generateVideoThumbnail(file: File, seekTo = 1.5): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    const objectUrl = URL.createObjectURL(file);
+    video.src = objectUrl;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+
+    const cleanup = () => URL.revokeObjectURL(objectUrl);
+
+    video.addEventListener("error", () => { cleanup(); resolve(null); }, { once: true });
+
+    video.addEventListener("loadedmetadata", () => {
+      // Clamp seek so we never go past the end of very short clips
+      video.currentTime = Math.min(seekTo, Math.max(0, video.duration - 0.1));
+    }, { once: true });
+
+    video.addEventListener("seeked", () => {
+      const canvas = document.createElement("canvas");
+      // Cap at 1280px wide so thumbnails stay compact
+      const scale = Math.min(1, 1280 / Math.max(video.videoWidth, 1));
+      canvas.width  = Math.round(video.videoWidth  * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { cleanup(); resolve(null); return; }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      cleanup();
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.82);
+    }, { once: true });
+  });
+}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -194,7 +233,19 @@ export function ManualUploadForm() {
       if (!ACCEPTED.includes(f.type)) continue;
       if (f.size > MAX_MB * 1024 * 1024) continue;
       const preview = isImage(f.type) ? URL.createObjectURL(f) : null;
-      valid.push({ id: uid(), file: f, preview });
+      const id = uid();
+      valid.push({ id, file: f, preview, thumbnailBlob: null });
+
+      // For videos: generate thumbnail async and update the queue item when ready
+      if (isVideoFile(f.type)) {
+        generateVideoThumbnail(f).then((blob) => {
+          if (!blob) return;
+          const previewUrl = URL.createObjectURL(blob);
+          setQueue(prev => prev.map(q =>
+            q.id === id ? { ...q, preview: previewUrl, thumbnailBlob: blob } : q
+          ));
+        });
+      }
     }
     setQueue(prev => [...prev, ...valid]);
   }
@@ -261,19 +312,32 @@ export function ManualUploadForm() {
       await Promise.all(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (prepareData.uploads as any[]).map(async (u: any, i: number) => {
-          const file = queue[i].file;
+          const queuedFile = queue[i];
           try {
+            // Upload main file
             const putRes = await fetch(u.signedUrl, {
               method: "PUT",
               headers: { "Content-Type": u.contentType },
-              body: file,
+              body: queuedFile.file,
             });
             if (!putRes.ok) {
               const errText = await putRes.text().catch(() => String(putRes.status));
               uploadResults[i] = { ...u, ok: false, error: `Storage upload failed: ${errText}` };
-            } else {
-              uploadResults[i] = { ...u, ok: true };
+              return;
             }
+
+            // Upload thumbnail (for videos — generated client-side before submit)
+            let thumbnailStoragePath: string | null = null;
+            if (u.thumbnailSignedUrl && queuedFile.thumbnailBlob) {
+              const thumbPut = await fetch(u.thumbnailSignedUrl, {
+                method: "PUT",
+                headers: { "Content-Type": "image/jpeg" },
+                body: queuedFile.thumbnailBlob,
+              });
+              if (thumbPut.ok) thumbnailStoragePath = u.thumbnailStoragePath;
+            }
+
+            uploadResults[i] = { ...u, ok: true, thumbnailStoragePath };
           } catch (err) {
             uploadResults[i] = { ...u, ok: false, error: err instanceof Error ? err.message : "Network error during upload." };
           }
@@ -294,12 +358,13 @@ export function ManualUploadForm() {
               brand_id:       prepareData.brand_id,
               brand_name:     prepareData.brand_name,
               published_date: prepareData.published_date,
-              items: successfulUploads.map((u: { storagePath: string; contentType: string; platform: string; campaignId: string | null; originalName: string }) => ({
-                storagePath:  u.storagePath,
-                contentType:  u.contentType,
-                platform:     u.platform,
-                campaignId:   u.campaignId,
-                originalName: u.originalName,
+              items: successfulUploads.map((u: { storagePath: string; contentType: string; platform: string; campaignId: string | null; originalName: string; thumbnailStoragePath: string | null }) => ({
+                storagePath:          u.storagePath,
+                contentType:          u.contentType,
+                platform:             u.platform,
+                campaignId:           u.campaignId,
+                originalName:         u.originalName,
+                thumbnailStoragePath: u.thumbnailStoragePath ?? null,
               })),
             }),
           });
