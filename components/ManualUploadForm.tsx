@@ -218,40 +218,119 @@ export function ManualUploadForm() {
     setResponse(null); setUploadError(null);
 
     startTransition(async () => {
-      const fd = new FormData();
-      fd.append("brand_name", brandName.trim());
-      fd.append("brand_website", brandWebsite.trim());
-      fd.append("published_date", publishedDate);
-      fd.append("platform", platform);
-      if (campaignId.trim()) fd.append("campaign_id", campaignId.trim());
-      queue.forEach(q => fd.append("files", q.file));
-
+      // ── Step 1: Prepare ───────────────────────────────────────────────────
+      // Send only file metadata (name/size/type) to get signed upload URLs.
+      // No file bytes pass through Vercel, so no 4.5 MB limit applies here.
+      let prepareRes: Response;
       try {
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        prepareRes = await fetch("/api/upload/prepare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            brand_name:     brandName.trim(),
+            brand_website:  brandWebsite.trim(),
+            published_date: publishedDate,
+            platform,
+            campaign_id:    campaignId.trim() || undefined,
+            files: queue.map(q => ({ name: q.file.name, size: q.file.size, type: q.file.type })),
+          }),
+        });
+      } catch (err) {
+        setUploadError(err instanceof Error ? err.message : "Network error during prepare.");
+        return;
+      }
 
-        let json: UploadResponse;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let prepareData: any;
+      try {
+        prepareData = await prepareRes.json();
+      } catch {
+        setUploadError(`Server error during prepare (HTTP ${prepareRes.status}).`);
+        return;
+      }
+      if (!prepareRes.ok) {
+        setUploadError(prepareData?.detail ?? prepareData?.error ?? `Prepare failed (HTTP ${prepareRes.status}).`);
+        return;
+      }
+
+      // ── Step 2: Upload each file directly to Supabase Storage ─────────────
+      // PUT goes Browser → Supabase directly — completely bypasses Vercel.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const uploadResults: any[] = new Array(queue.length).fill(null);
+
+      await Promise.all(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (prepareData.uploads as any[]).map(async (u: any, i: number) => {
+          const file = queue[i].file;
+          try {
+            const putRes = await fetch(u.signedUrl, {
+              method: "PUT",
+              headers: { "Content-Type": u.contentType },
+              body: file,
+            });
+            if (!putRes.ok) {
+              const errText = await putRes.text().catch(() => String(putRes.status));
+              uploadResults[i] = { ...u, ok: false, error: `Storage upload failed: ${errText}` };
+            } else {
+              uploadResults[i] = { ...u, ok: true };
+            }
+          } catch (err) {
+            uploadResults[i] = { ...u, ok: false, error: err instanceof Error ? err.message : "Network error during upload." };
+          }
+        })
+      );
+
+      const successfulUploads = uploadResults.filter(r => r?.ok);
+      const failedUploads     = uploadResults.filter(r => !r?.ok);
+
+      // ── Step 3: Register successful uploads in the DB ──────────────────────
+      let json: UploadResponse | null = null;
+      if (successfulUploads.length > 0) {
         try {
-          json = await res.json() as UploadResponse;
-        } catch {
-          // Response wasn't valid JSON — usually means Vercel rejected the
-          // request before it reached the handler (e.g. 413 payload too large).
-          const statusText = res.status === 413
-            ? `File too large for the server (${res.status}). Try a smaller file or upload directly to storage.`
-            : `Server returned a non-JSON response (HTTP ${res.status}). Check the upload size limit.`;
-          setUploadError(statusText);
+          const regRes = await fetch("/api/upload/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              brand_id:       prepareData.brand_id,
+              brand_name:     prepareData.brand_name,
+              published_date: prepareData.published_date,
+              items: successfulUploads.map((u: { storagePath: string; contentType: string; platform: string; campaignId: string | null; originalName: string }) => ({
+                storagePath:  u.storagePath,
+                contentType:  u.contentType,
+                platform:     u.platform,
+                campaignId:   u.campaignId,
+                originalName: u.originalName,
+              })),
+            }),
+          });
+          json = await regRes.json() as UploadResponse;
+        } catch (err) {
+          setUploadError(err instanceof Error ? err.message : "Network error during register.");
           return;
         }
+      }
 
-        setResponse(json);
-        if (json.summary?.inserted > 0) {
-          // Clear successfully uploaded files
-          setQueue(prev => prev.filter((_, i) => json.results[i]?.status !== "inserted"));
-        }
-      } catch (err) {
-        setUploadError(err instanceof Error ? err.message : "Network error");
+      // Merge storage-upload results with DB-register results
+      const mergedResults: FileResult[] = uploadResults.map((u) =>
+        u?.ok
+          ? (json?.results.find((r: FileResult) => r.filename === u.originalName) ?? { status: "error" as const, filename: u?.originalName ?? "?", error: "DB registration missing" })
+          : { status: "error" as const, filename: u?.originalName ?? "?", error: u?.error }
+      );
+      const mergedSummary = {
+        inserted:       json?.summary.inserted ?? 0,
+        errors:         (json?.summary.errors ?? 0) + failedUploads.length,
+        brand_id:       prepareData.brand_id,
+        brand_name:     prepareData.brand_name,
+        published_date: prepareData.published_date,
+      };
+
+      setResponse({ summary: mergedSummary, results: mergedResults });
+      if (mergedSummary.inserted > 0) {
+        setQueue(prev => prev.filter((_, i) => mergedResults[i]?.status !== "inserted"));
       }
     });
   }
+
 
   const canSubmit = brandName.trim() && publishedDate && queue.length > 0 && !pending;
   const today = new Date().toISOString().slice(0, 10);
