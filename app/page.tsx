@@ -27,6 +27,7 @@ export const revalidate = 60;
 interface CreativeRow {
   id: string;
   brand_id: string;
+  campaign_id: string | null;
   platform: string;
   source_url: string;
   thumbnail_url: string | null;
@@ -68,6 +69,7 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
     creative: {
       id:              row.id,
       brand_id:        row.brand_id,
+      campaign_id:     row.campaign_id,
       brand_name:      brandName,
       title,
       platform,
@@ -107,7 +109,7 @@ export default async function DashboardPage() {
     // ── Fetch latest 20 creatives with brand name joined ──────────────────────
     const { data: rows, error: rowsErr } = await supabase
       .from("creatives")
-      .select("id, brand_id, platform, source_url, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url)")
+      .select("id, brand_id, campaign_id, platform, source_url, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url)")
       .order("created_at", { ascending: false })
       .limit(20);
 

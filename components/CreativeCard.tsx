@@ -16,9 +16,12 @@ import {
   Image,
   Camera,
   Trash2,
+  Pencil,
   AlertTriangle,
   Loader2,
 } from "lucide-react";
+import { EditCreativeModal } from "./EditCreativeModal";
+import type { EditCreativePayload } from "./EditCreativeModal";
 
 const PLATFORM_CONFIG: Record<
   Creative["platform"],
@@ -109,9 +112,10 @@ interface CreativeCardProps {
   index?: number;
   brandLogoUrl?: string | null;
   onDelete?: (id: string) => void;
+  onUpdate?: (id: string, patch: EditCreativePayload & { brand_name?: string }) => void;
 }
 
-export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: CreativeCardProps) {
+export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUpdate }: CreativeCardProps) {
   const platform = PLATFORM_CONFIG[creative.platform];
   const PlatformIcon = platform.icon;
   const AdTypeIcon = AD_TYPE_ICON[creative.ad_type];
@@ -122,12 +126,18 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting]   = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const confirmed = confirmText.trim().toUpperCase() === "DELETE";
 
   const openModal = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setConfirmText(""); setDeleteError(null); setShowModal(true);
+  }, []);
+
+  const openEditModal = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowEditModal(true);
   }, []);
 
   const closeModal = useCallback(() => {
@@ -271,8 +281,29 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
           {platform.label}
         </div>
 
-        {/* Top-right controls: delete button + status dot */}
+        {/* Top-right controls: edit + delete buttons + status dot */}
         <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Edit button */}
+          <button
+            onClick={openEditModal}
+            title="Edit creative"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 28,
+              background: "rgba(79,179,186,0.85)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(79,179,186,0.4)",
+              borderRadius: "7px",
+              cursor: "pointer",
+              opacity: hovered ? 1 : 0,
+              transform: hovered ? "scale(1)" : "scale(0.8)",
+              transition: "opacity 180ms ease, transform 180ms ease",
+              pointerEvents: hovered ? "auto" : "none",
+            }}
+          >
+            <Pencil size={12} color="#fff" />
+          </button>
+
           {/* Delete button — reveals on hover */}
           <button
             onClick={openModal}
@@ -584,6 +615,18 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
           </div>
         </div>
       </div>
+    )}
+
+    {/* ── Edit creative modal ──────────────────────────────────────────────── */}
+    {showEditModal && (
+      <EditCreativeModal
+        creative={creative}
+        onClose={() => setShowEditModal(false)}
+        onSave={(id, patch) => {
+          setShowEditModal(false);
+          onUpdate?.(id, patch);
+        }}
+      />
     )}
 
     <style>{`

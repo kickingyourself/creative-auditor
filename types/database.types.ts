@@ -64,6 +64,11 @@ export interface CreativeRow {
   /** Canonical URL of the ad unit (YouTube watch URL, TikTok share URL, etc.). */
   source_url: string;
   /**
+   * Optional user-provided title. NULL = auto-derive from source_url + platform.
+   * Added in migration 003_add_title_to_creatives.sql.
+   */
+  title: string | null;
+  /**
    * Cached thumbnail URL from the creative-assets Supabase Storage bucket.
    * Nullable until the thumbnail has been fetched and cached.
    */
@@ -116,6 +121,7 @@ export interface CreativeInsert {
   campaign_id?: string | null;
   platform: PlatformType;
   source_url: string;
+  title?: string | null;
   thumbnail_url?: string | null;
   view_count?: number | null;
   engagement_rate?: number | null;
@@ -132,9 +138,21 @@ export type CampaignUpdate = Partial<
   Omit<CampaignInsert, 'id' | 'brand_id' | 'created_at'>
 >;
 
-export type CreativeUpdate = Partial<
-  Omit<CreativeInsert, 'id' | 'brand_id' | 'created_at'>
->;
+/**
+ * All fields that may be patched on a creative.
+ * brand_id, title, created_at, and campaign_id are exposed for the edit UI.
+ */
+export interface CreativeUpdate {
+  brand_id?: string;
+  campaign_id?: string | null;
+  platform?: PlatformType;
+  source_url?: string;
+  title?: string | null;
+  thumbnail_url?: string | null;
+  view_count?: number | null;
+  engagement_rate?: number | null;
+  created_at?: string;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Supabase Database generic type

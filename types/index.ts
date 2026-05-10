@@ -3,6 +3,7 @@ export interface Creative {
   brand_id: string;
   brand_name: string | null;       // joined from brands table
   title: string;                   // derived display title
+  campaign_id: string | null;      // FK → campaigns.id (nullable)
   platform: "youtube" | "tiktok" | "homepage" | "social" | "meta" | "website" | "other";
   thumbnail_url: string | null;
   source_url: string;              // canonical URL from DB
