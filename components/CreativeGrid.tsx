@@ -35,7 +35,7 @@ export function CreativeGrid({ items }: Props) {
     }, 300);
   }
 
-  function handleUpdate(id: string, patch: EditCreativePayload & { brand_name?: string }) {
+  function handleUpdate(id: string, patch: EditCreativePayload & { brand_name?: string; campaign_name?: string }) {
     setList(prev =>
       prev.map(item => {
         if (item.creative.id !== id) return item;
@@ -43,12 +43,12 @@ export function CreativeGrid({ items }: Props) {
           ...item,
           creative: {
             ...item.creative,
-            brand_id:    patch.brand_id,
-            brand_name:  patch.brand_name ?? item.creative.brand_name,
-            title:       patch.title ?? item.creative.title,
-            created_at:  patch.created_at,
+            brand_id:     patch.brand_id,
+            brand_name:   patch.brand_name ?? item.creative.brand_name,
+            title:        patch.title ?? item.creative.title,
+            created_at:   patch.created_at,
             published_at: patch.created_at,
-            campaign_id: patch.campaign_id,
+            campaign_id:  patch.campaign_id,
           },
         };
       })

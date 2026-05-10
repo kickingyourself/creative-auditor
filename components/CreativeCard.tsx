@@ -112,7 +112,7 @@ interface CreativeCardProps {
   index?: number;
   brandLogoUrl?: string | null;
   onDelete?: (id: string) => void;
-  onUpdate?: (id: string, patch: EditCreativePayload & { brand_name?: string }) => void;
+  onUpdate?: (id: string, patch: EditCreativePayload & { brand_name?: string; campaign_name?: string }) => void;
 }
 
 export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUpdate }: CreativeCardProps) {
