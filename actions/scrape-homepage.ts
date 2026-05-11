@@ -185,14 +185,27 @@ export async function scrapeHomepage(
 
     const page = await context.newPage();
 
-    // ── 3. Navigate and wait for network to settle ───────────────────────────
-    await page.goto(targetUrl, {
-      waitUntil: 'networkidle',
-      timeout: 30_000, // 30 s hard cap
-    });
+    // ── 3. Navigate — tiered wait strategy ──────────────────────────────────
+    // 'networkidle' fails on pages with persistent polling (PayPal, Stripe, etc.).
+    // Strategy: try 'load' first (DOM + subresources), then fall back to
+    // 'domcontentloaded' if that also times out. Either way we get a page.
+    try {
+      await page.goto(targetUrl, {
+        waitUntil: 'load',
+        timeout: 20_000, // 20 s for load event
+      });
+    } catch {
+      // If 'load' times out (e.g. lazy scripts never finish), fall back to
+      // domcontentloaded which fires as soon as the HTML is parsed.
+      await page.goto(targetUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: 25_000,
+      });
+    }
 
-    // Let any lazy-loaded hero images / animations finish
-    await page.waitForTimeout(1500);
+    // Let any lazy-loaded hero images / animations settle.
+    // 2 s gives SPAs time to render their above-the-fold content.
+    await page.waitForTimeout(2_000);
 
     // Dismiss common cookie / consent banners by pressing Escape
     await page.keyboard.press('Escape').catch(() => {/* non-fatal */ });
