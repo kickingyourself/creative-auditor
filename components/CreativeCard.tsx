@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Creative } from "@/types";
 import {
   PlayCircle,
@@ -498,8 +499,8 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
       </div>
     </article>
 
-    {/* ── Delete confirmation modal ──────────────────────────────────────── */}
-    {showModal && (
+    {/* ── Delete confirmation modal ──────────────────────────────────── */}
+    {showModal && typeof document !== "undefined" && createPortal(
       <div
         role="dialog"
         aria-modal="true"
@@ -635,7 +636,8 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     )}
 
     {/* ── Edit creative modal ──────────────────────────────────────────────── */}
