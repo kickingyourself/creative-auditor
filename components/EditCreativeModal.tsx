@@ -367,6 +367,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
   const [dateValue,    setDateValue]    = useState(isoToDateInput(creative.created_at));
   const [campaignId,   setCampaignId]   = useState<string | null>(creative.campaign_id ?? null);
   const [campaignName, setCampaignName] = useState("");
+  const [campaignTouched, setCampaignTouched] = useState(false);
 
   // Brands list for the select
   const [brands,        setBrands]        = useState<BrandOption[]>([]);
@@ -414,6 +415,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
   function handleCampaignChange(id: string | null, name: string) {
     setCampaignId(id);
     setCampaignName(name);
+    setCampaignTouched(true);
   }
 
 
@@ -459,10 +461,11 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
   }
 
   const isDirty =
-    brandId    !== creative.brand_id                        ||
-    (title.trim() || null) !== (creative.title ?? null)    ||
-    dateValue  !== isoToDateInput(creative.created_at)     ||
-    campaignId !== (creative.campaign_id ?? null);
+    brandId    !== creative.brand_id                     ||
+    (title.trim() || null) !== (creative.title ?? null) ||
+    dateValue  !== isoToDateInput(creative.created_at)  ||
+    campaignId !== (creative.campaign_id ?? null)        ||
+    campaignTouched;
 
   // ── Lock body scroll while open ──────────────────────────────────────
   useEffect(() => {
