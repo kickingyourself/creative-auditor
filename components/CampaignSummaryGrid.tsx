@@ -81,7 +81,7 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
             gridTemplateRows: "1fr 1fr",
             height: "100%",
             background: "var(--color-surface-2)",
-            gap: "2px",
+            gap: 0,
           }}
         >
           {thumbs.map((url, i) =>
