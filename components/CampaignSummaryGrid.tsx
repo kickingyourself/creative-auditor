@@ -77,7 +77,7 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "80px 80px",
+          gridTemplateRows: "120px 120px",
           background: "var(--color-surface-2)",
           gap: "1px",
         }}
@@ -107,7 +107,7 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
       </div>
 
       {/* ── Info ── */}
-      <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
 
         {/* Brand row */}
         <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
@@ -116,20 +116,20 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
             <img
               src={s.brand_logo_url}
               alt={s.brand_name}
-              style={{ width: 18, height: 18, borderRadius: 4, objectFit: "contain", flexShrink: 0 }}
+              style={{ width: 20, height: 20, borderRadius: 4, objectFit: "contain", flexShrink: 0 }}
             />
           ) : (
             <div style={{
-              width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+              width: 20, height: 20, borderRadius: 4, flexShrink: 0,
               background: "var(--color-accent)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 9, fontWeight: 800, color: "#0a1a1b",
+              fontSize: 10, fontWeight: 800, color: "#0a1a1b",
             }}>
               {s.brand_name[0]?.toUpperCase()}
             </div>
           )}
           <span style={{
-            fontSize: "11px", fontWeight: 700,
+            fontSize: "12px", fontWeight: 700,
             color: "var(--color-text-secondary)",
             textTransform: "uppercase", letterSpacing: "0.05em",
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
@@ -146,7 +146,7 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
             style={{ flexShrink: 0 }}
           />
           <span style={{
-            fontSize: "13px",
+            fontSize: "14px",
             fontWeight: isUncategorised ? 400 : 600,
             color: isUncategorised ? "var(--color-text-muted)" : "var(--color-text-primary)",
             fontStyle: isUncategorised ? "italic" : "normal",
@@ -161,7 +161,7 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px",
           marginTop: "2px",
         }}>
-          <span style={{ fontSize: "11px", color: "var(--color-text-muted)", fontWeight: 500 }}>
+          <span style={{ fontSize: "12px", color: "var(--color-text-muted)", fontWeight: 500 }}>
             {s.creative_count} creative{s.creative_count !== 1 ? "s" : ""}
           </span>
           <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -208,8 +208,8 @@ export function CampaignSummaryGrid({ summaries }: Props) {
       {/* Tiles */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-        gap: "16px",
+        gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+        gap: "18px",
       }}>
         {summaries.map((s) => (
           <SummaryTile
