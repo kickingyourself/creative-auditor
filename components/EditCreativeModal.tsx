@@ -81,6 +81,8 @@ interface CampaignComboboxProps {
   /** Currently selected campaign UUID (or null = none) */
   value: string | null;
   onChange: (id: string | null, name: string) => void;
+  /** Called on every keystroke so the parent can track that the field was touched. */
+  onQueryChange?: (query: string) => void;
   disabled?: boolean;
   /** The campaign name to display on load (so we can pre-fill the input) */
   initialName?: string;
@@ -91,6 +93,7 @@ function CampaignCombobox({
   brandId,
   value,
   onChange,
+  onQueryChange,
   disabled,
   initialName,
   creativeId,
@@ -179,8 +182,8 @@ function CampaignCombobox({
     const v = e.target.value;
     setQuery(v);
     setOpen(true);
-    // If cleared entirely, unset campaign
-    if (!v.trim()) onChange(null, "");
+    onQueryChange?.(v);          // notify parent on every keystroke
+    if (!v.trim()) onChange(null, "");  // clear selection when field is emptied
   }
 
   const isSelected = value !== null;
@@ -620,6 +623,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
                 brandId={brandId}
                 value={campaignId}
                 onChange={handleCampaignChange}
+                onQueryChange={() => setCampaignTouched(true)}
                 disabled={isSaving}
                 initialName={campaignName}
                 creativeId={creative.id}
