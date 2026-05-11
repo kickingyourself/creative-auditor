@@ -72,6 +72,12 @@ const PLATFORM_CONFIG: Record<
     color: "#8888a8",
     bg: "rgba(136,136,168,0.12)",
   },
+  pinterest: {
+    icon: Share2,
+    label: "Pinterest",
+    color: "#e60023",
+    bg: "rgba(230,0,35,0.12)",
+  },
 };
 
 const AD_TYPE_ICON: Record<Creative["ad_type"], React.ElementType> = {
