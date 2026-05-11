@@ -73,41 +73,50 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
       }}
     >
       {/* ── Thumbnail mosaic ── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "120px 120px",
-          background: "var(--color-surface-2)",
-          gap: "1px",
-        }}
-      >
-        {thumbs.map((url, i) =>
-          url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={url}
-              alt=""
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            />
-          ) : (
-            <div
-              key={i}
-              style={{
-                width: "100%", height: "100%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "var(--color-surface-2)",
-              }}
-            >
-              <ImageIcon size={18} color="var(--color-border)" />
-            </div>
-          )
-        )}
+      <div style={{ height: "240px", flexShrink: 0, overflow: "hidden" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gridTemplateRows: "1fr 1fr",
+            height: "100%",
+            background: "var(--color-surface-2)",
+            gap: "2px",
+          }}
+        >
+          {thumbs.map((url, i) =>
+            url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={i}
+                src={url}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+            ) : (
+              <div
+                key={i}
+                style={{
+                  width: "100%", height: "100%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "var(--color-surface-2)",
+                }}
+              >
+                <ImageIcon size={18} color="var(--color-border)" />
+              </div>
+            )
+          )}
+        </div>
       </div>
 
       {/* ── Info ── */}
-      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{
+        padding: "14px 16px",
+        display: "flex", flexDirection: "column", gap: "10px",
+        background: "var(--color-surface)",
+        borderTop: "1px solid var(--color-border)",
+        flexShrink: 0,
+      }}>
 
         {/* Brand row */}
         <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
