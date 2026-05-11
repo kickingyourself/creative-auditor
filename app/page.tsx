@@ -13,6 +13,8 @@ import { Creative } from "@/types";
 import { CreativeGrid } from "@/components/CreativeGrid";
 import { StatCards } from "@/components/StatCards";
 import type { StatCardsData } from "@/components/StatCards";
+import { CampaignSummaryGrid } from "@/components/CampaignSummaryGrid";
+import type { CampaignSummary } from "@/components/CampaignSummaryGrid";
 
 export const metadata: Metadata = {
   title: "Dashboard — Creative Audit",
@@ -105,6 +107,7 @@ export default async function DashboardPage() {
     totalViews: 0,
     topPlatform: "—",
   };
+  let summaries: CampaignSummary[] = [];
   let dbError = false;
 
   try {
@@ -150,6 +153,58 @@ export default async function DashboardPage() {
       totalViews,
       topPlatform,
     };
+
+    // ── Brand+Campaign summary ─────────────────────────────────────────────
+    // Fetch all creatives with brand + campaign info (no limit) for grouping.
+    const { data: allRows } = await supabase
+      .from("creatives")
+      .select("brand_id, campaign_id, platform, thumbnail_url, brands(name, logo_url), campaigns(name)")
+      .order("created_at", { ascending: false });
+
+    if (allRows) {
+      // Group by brand_id + campaign_id (null = uncategorised)
+      const groupMap = new Map<string, CampaignSummary>();
+
+      for (const row of allRows as {
+        brand_id: string;
+        campaign_id: string | null;
+        platform: string;
+        thumbnail_url: string | null;
+        brands: { name: string; logo_url: string | null } | null;
+        campaigns: { name: string } | null;
+      }[]) {
+        const key = `${row.brand_id}::${row.campaign_id ?? "__none__"}`;
+
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            brand_id:      row.brand_id,
+            brand_name:    row.brands?.name ?? "Unknown Brand",
+            brand_logo_url: row.brands?.logo_url ?? null,
+            campaign_id:   row.campaign_id,
+            campaign_name: row.campaigns?.name ?? null,
+            creative_count: 0,
+            thumbnails: [],
+            platforms: [],
+          });
+        }
+
+        const group = groupMap.get(key)!;
+        group.creative_count++;
+        if (group.thumbnails.length < 4 && row.thumbnail_url) {
+          group.thumbnails.push(row.thumbnail_url);
+        }
+        if (!group.platforms.includes(row.platform)) {
+          group.platforms.push(row.platform);
+        }
+      }
+
+      // Sort: named campaigns first, then uncategorised; alphabetically within each
+      summaries = Array.from(groupMap.values()).sort((a, b) => {
+        if (!!a.campaign_id !== !!b.campaign_id) return a.campaign_id ? -1 : 1;
+        return (a.brand_name + (a.campaign_name ?? "")).localeCompare(
+                b.brand_name + (b.campaign_name ?? ""));
+      });
+    }
   } catch {
     dbError = true;
   }
@@ -187,6 +242,9 @@ export default async function DashboardPage() {
 
       {/* Live stat cards */}
       <StatCards data={statsData} />
+
+      {/* Brand + Campaign overview */}
+      <CampaignSummaryGrid summaries={summaries} />
 
       {/* Section header */}
       <div style={{
