@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { EditCreativeModal } from "./EditCreativeModal";
 import type { EditCreativePayload } from "./EditCreativeModal";
+import { CreativeViewModal } from "./CreativeViewModal";
 
 const PLATFORM_CONFIG: Record<
   Creative["platform"],
@@ -123,12 +124,13 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
   const AdTypeIcon = AD_TYPE_ICON[creative.ad_type];
 
   // ── Delete flow state ──────────────────────────────────────────────────────
-  const [hovered, setHovered]         = useState(false);
-  const [showModal, setShowModal]     = useState(false);
-  const [confirmText, setConfirmText] = useState("");
-  const [isDeleting, setIsDeleting]   = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [hovered, setHovered]             = useState(false);
+  const [showModal, setShowModal]         = useState(false);
+  const [confirmText, setConfirmText]     = useState("");
+  const [isDeleting, setIsDeleting]       = useState(false);
+  const [deleteError, setDeleteError]     = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   const confirmed = confirmText.trim().toUpperCase() === "DELETE";
 
@@ -197,6 +199,7 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
         el.style.boxShadow = "none";
         setHovered(false);
       }}
+      onClick={() => setShowViewModal(true)}
     >
       {/* Thumbnail */}
       <div
@@ -649,6 +652,15 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
           setShowEditModal(false);
           onUpdate?.(id, patch);
         }}
+      />
+    )}
+
+    {/* ── View modal ────────────────────────────────────────────────── */}
+    {showViewModal && (
+      <CreativeViewModal
+        creative={creative}
+        brandLogoUrl={brandLogoUrl}
+        onClose={() => setShowViewModal(false)}
       />
     )}
 
