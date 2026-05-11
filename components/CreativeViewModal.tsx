@@ -46,6 +46,17 @@ function getYouTubeEmbedUrl(sourceUrl: string): string | null {
   }
 }
 
+/** Returns true if the URL points directly to a video file (e.g. Supabase storage upload). */
+function isDirectVideoUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const path = new URL(url).pathname.toLowerCase();
+    return /\.(mp4|mov|webm|m4v|ogv|ogg|avi)$/.test(path);
+  } catch {
+    return false;
+  }
+}
+
 function fmtNum(n: number | null | undefined): string {
   if (n == null) return "—";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -105,7 +116,13 @@ export function CreativeViewModal({ creative, brandLogoUrl, onClose }: Props) {
 
   // Determine media type
   const isVideoEmbed  = isYouTube && embedUrl;
-  const isNativeVideo = !isYouTube && creative.ad_type === "video" && !!creative.video_url;
+  // For native video: prefer explicit video_url, then fall back to source_url if it's a direct file
+  const nativeVideoSrc =
+    creative.video_url ||
+    (creative.ad_type === "video" && isDirectVideoUrl(creative.source_url)
+      ? creative.source_url
+      : null);
+  const isNativeVideo = !isYouTube && !!nativeVideoSrc;
   const isImage       = !isVideoEmbed && !isNativeVideo;
 
   return createPortal(
@@ -220,17 +237,21 @@ export function CreativeViewModal({ creative, brandLogoUrl, onClose }: Props) {
             </div>
           )}
 
-          {/* Native video */}
+          {/* Native video — auto-detect portrait vs landscape */}
           {isNativeVideo && (
-            <div style={{ aspectRatio: "16/9" }}>
-              <video
-                src={creative.video_url!}
-                controls
-                autoPlay
-                playsInline
-                style={{ width: "100%", height: "100%", display: "block", objectFit: "contain" }}
-              />
-            </div>
+            <video
+              src={nativeVideoSrc!}
+              poster={creative.thumbnail_url ?? undefined}
+              controls
+              playsInline
+              style={{
+                width: "100%",
+                maxHeight: "78vh",
+                display: "block",
+                objectFit: "contain",
+                background: "#000",
+              }}
+            />
           )}
 
           {/* Image / screenshot */}
