@@ -1,0 +1,210 @@
+/**
+ * app/creatives/page.tsx
+ *
+ * Full creative library — all ingested creatives, editable, grouped by
+ * brand + campaign with a filter summary at the top.
+ */
+
+import type { Metadata } from "next";
+import { createServerClient } from "@/utils/supabase/server";
+import { Creative } from "@/types";
+import { CreativeGrid } from "@/components/CreativeGrid";
+import { CampaignSummaryGrid } from "@/components/CampaignSummaryGrid";
+import type { CampaignSummary } from "@/components/CampaignSummaryGrid";
+
+export const metadata: Metadata = {
+  title: "Creatives — Creative Audit",
+  description: "Full library of all tracked ad creatives across every brand and campaign.",
+};
+
+export const revalidate = 60;
+
+// ── DB row type ───────────────────────────────────────────────────────────────
+
+interface CreativeRow {
+  id: string;
+  brand_id: string;
+  campaign_id: string | null;
+  platform: string;
+  source_url: string;
+  title: string | null;
+  thumbnail_url: string | null;
+  view_count: number | null;
+  engagement_rate: number | null;
+  created_at: string;
+  brands: { name: string; logo_url: string | null } | null;
+  campaigns: { name: string } | null;
+}
+
+// ── Mapper ────────────────────────────────────────────────────────────────────
+
+function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: string | null } {
+  const platform = row.platform as Creative["platform"];
+  const brandName = row.brands?.name ?? null;
+  const brandLogoUrl = row.brands?.logo_url ?? null;
+
+  let derivedTitle = row.source_url;
+  try {
+    const url = new URL(row.source_url);
+    if (row.platform === "youtube") {
+      const videoId = url.searchParams.get("v") ?? url.pathname.split("/").pop();
+      derivedTitle = `${brandName ?? "YouTube"} · ${videoId}`;
+    } else if (row.platform === "homepage") {
+      derivedTitle = `${brandName ?? url.hostname} — Homepage`;
+    } else if (row.platform === "tiktok") {
+      derivedTitle = `${brandName ?? "TikTok"} · ${url.pathname.split("/").pop()}`;
+    } else {
+      derivedTitle = url.hostname.replace(/^www\./, "");
+    }
+  } catch { /* keep source_url */ }
+  const title = row.title ?? derivedTitle;
+
+  return {
+    creative: {
+      id:               row.id,
+      brand_id:         row.brand_id,
+      campaign_id:      row.campaign_id,
+      campaign_name:    row.campaigns?.name ?? null,
+      brand_name:       brandName,
+      title,
+      platform,
+      source_url:       row.source_url,
+      thumbnail_url:    row.thumbnail_url,
+      video_url:        row.platform === "youtube" ? row.source_url : null,
+      views:            row.view_count,
+      likes:            null,
+      comments:         null,
+      engagement_rate:  row.engagement_rate,
+      duration_seconds: null,
+      published_at:     row.created_at,
+      ad_type:          row.platform === "homepage" ? "image" : "video",
+      status:           "active",
+      created_at:       row.created_at,
+      updated_at:       row.created_at,
+    },
+    brandLogoUrl,
+  };
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default async function CreativesPage() {
+  let mapped: { creative: Creative; brandLogoUrl: string | null }[] = [];
+  let summaries: CampaignSummary[] = [];
+  let dbError = false;
+
+  try {
+    const supabase = createServerClient();
+
+    // Fetch ALL creatives — no limit
+    const { data: rows, error } = await supabase
+      .from("creatives")
+      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns(name)")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    mapped = (rows as CreativeRow[]).map(toCreative);
+
+    // ── Brand+Campaign summary groups ─────────────────────────────────────────
+    const groupMap = new Map<string, CampaignSummary>();
+    for (const row of rows as CreativeRow[]) {
+      const key = `${row.brand_id}::${row.campaign_id ?? "__none__"}`;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          brand_id:      row.brand_id,
+          brand_name:    row.brands?.name ?? "Unknown Brand",
+          brand_logo_url: row.brands?.logo_url ?? null,
+          campaign_id:   row.campaign_id,
+          campaign_name: row.campaigns?.name ?? null,
+          creative_count: 0,
+          thumbnails: [],
+          platforms: [],
+        });
+      }
+      const g = groupMap.get(key)!;
+      g.creative_count++;
+      if (g.thumbnails.length < 4 && row.thumbnail_url) g.thumbnails.push(row.thumbnail_url);
+      if (!g.platforms.includes(row.platform)) g.platforms.push(row.platform);
+    }
+    summaries = Array.from(groupMap.values()).sort((a, b) => {
+      if (!!a.campaign_id !== !!b.campaign_id) return a.campaign_id ? -1 : 1;
+      return (a.brand_name + (a.campaign_name ?? "")).localeCompare(
+              b.brand_name + (b.campaign_name ?? ""));
+    });
+  } catch {
+    dbError = true;
+  }
+
+  return (
+    <div style={{ padding: "28px 28px 64px" }}>
+      {/* Page header */}
+      <div style={{ marginBottom: "28px" }}>
+        <h1 style={{
+          fontSize: "22px", fontWeight: 700,
+          color: "var(--color-text-primary)",
+          letterSpacing: "-0.025em", marginBottom: "6px",
+        }}>
+          Creatives
+        </h1>
+        <p style={{ fontSize: "14px", color: "var(--color-text-secondary)" }}>
+          {mapped.length > 0
+            ? `${mapped.length} creative${mapped.length !== 1 ? "s" : ""} across all brands and campaigns`
+            : "No creatives yet — head to Brands to get started"}
+        </p>
+      </div>
+
+      {/* Error state */}
+      {dbError && (
+        <div style={{
+          padding: "14px 18px",
+          background: "rgba(244,63,94,0.08)",
+          border: "1px solid rgba(244,63,94,0.2)",
+          borderRadius: "10px",
+          marginBottom: "24px",
+          fontSize: "13px",
+          color: "#f43f5e",
+        }}>
+          ⚠️ Could not connect to Supabase. Check your credentials in <code>.env.local</code>.
+        </div>
+      )}
+
+      {/* Brand+Campaign overview */}
+      {summaries.length > 0 && (
+        <CampaignSummaryGrid summaries={summaries} />
+      )}
+
+      {/* Full grid */}
+      {mapped.length > 0 ? (
+        <>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: "18px",
+          }}>
+            <h2 style={{
+              fontSize: "16px", fontWeight: 700,
+              color: "var(--color-text-primary)", letterSpacing: "-0.02em",
+            }}>
+              All Creatives
+            </h2>
+            <span style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>
+              {mapped.length} total
+            </span>
+          </div>
+          <CreativeGrid items={mapped} />
+        </>
+      ) : !dbError && (
+        <div style={{
+          padding: "60px 24px", textAlign: "center",
+          border: "1px dashed var(--color-border)", borderRadius: "16px",
+        }}>
+          <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "8px" }}>
+            No creatives yet
+          </p>
+          <p style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
+            Use the <strong>Brands</strong> page to capture homepage screenshots or ingest YouTube videos.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
