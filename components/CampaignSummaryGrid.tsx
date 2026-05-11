@@ -73,7 +73,7 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
       }}
     >
       {/* ── Thumbnail mosaic ── */}
-      <div style={{ height: "240px", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ aspectRatio: "1/1", flexShrink: 0, overflow: "hidden" }}>
         <div
           style={{
             display: "grid",
