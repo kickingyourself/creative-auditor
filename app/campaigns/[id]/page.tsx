@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 import { createServerClient } from "@/utils/supabase/server";
 import { Creative } from "@/types";
 import { CreativeGrid } from "@/components/CreativeGrid";
+import { AddCreativeTile } from "@/components/AddCreativeTile";
 
 export const revalidate = 60;
 
@@ -303,6 +304,24 @@ export default async function CampaignPage(
           <CreativeGrid items={byChannel[ch.key]} />
         </section>
       ))}
+
+      {/* ── Add creative tile ─────────────────────────────────────────── */}
+      {brand && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+          gap: "18px",
+          marginBottom: "40px",
+        }}>
+          <AddCreativeTile
+            brandId={brand.id}
+            brandName={brand.name}
+            brandLogoUrl={brand.logo_url}
+            campaignId={id}
+            campaignName={campaign.name}
+          />
+        </div>
+      )}
 
       {/* ── Empty channel sections (greyed out, always last) ─────────────── */}
       {emptyChannels.length > 0 && (
