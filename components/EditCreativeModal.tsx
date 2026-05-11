@@ -485,7 +485,6 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
         style={{
           width: "100%",
           maxWidth: 440,
-          minHeight: "100%",
           height: "auto",
           background: "var(--color-surface)",
           borderLeft: "1px solid var(--color-border)",
