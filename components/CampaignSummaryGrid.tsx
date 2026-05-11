@@ -76,42 +76,36 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
         (e.currentTarget as HTMLElement).style.boxShadow = "none";
       }}
     >
-      {/* ── Thumbnail mosaic ── guaranteed 1:1 via padding-bottom trick */}
-      <div style={{ position: "relative", width: "100%", paddingBottom: "100%", flexShrink: 0, overflow: "hidden" }}>
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gridTemplateRows: "1fr 1fr",
-            background: "var(--color-surface-2)",
-            gap: 0,
-          }}
-        >
-          {thumbs.map((url, i) =>
-            url ? (
+      {/* ── Thumbnail mosaic ── 4 quadrants, absolutely positioned so portrait images can't break the 1:1 shape */}
+      <div style={{ position: "relative", width: "100%", paddingBottom: "100%", flexShrink: 0, overflow: "hidden", background: "var(--color-surface-2)" }}>
+        {thumbs.map((url, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              top:    i < 2 ? 0 : "50%",
+              left:   i % 2 === 0 ? 0 : "50%",
+              width:  "50%",
+              height: "50%",
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "var(--color-surface-2)",
+            }}
+          >
+            {url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                key={i}
                 src={url}
                 alt=""
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
               />
             ) : (
-              <div
-                key={i}
-                style={{
-                  width: "100%", height: "100%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "var(--color-surface-2)",
-                }}
-              >
-                <ImageIcon size={18} color="var(--color-border)" />
-              </div>
-            )
-          )}
-        </div>
+              <ImageIcon size={18} color="var(--color-border)" />
+            )}
+          </div>
+        ))}
       </div>
 
       {/* ── Info ── */}
