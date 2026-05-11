@@ -11,6 +11,7 @@
  */
 
 import { Layers, ImageIcon } from "lucide-react";
+import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
   const thumbs = [...s.thumbnails, null, null, null, null].slice(0, 4);
   const isUncategorised = s.campaign_id === null;
 
-  return (
+  const card = (
     <article
       style={{
         background: "var(--color-surface)",
@@ -61,11 +62,14 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
         display: "flex",
         flexDirection: "column",
         transition: "border-color 200ms ease, box-shadow 200ms ease",
-        cursor: "default",
+        cursor: isUncategorised ? "default" : "pointer",
+        textDecoration: "none",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "var(--color-accent)";
-        (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(34,211,160,0.12)";
+        if (!isUncategorised) {
+          (e.currentTarget as HTMLElement).style.borderColor = "var(--color-accent)";
+          (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(34,211,160,0.12)";
+        }
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border)";
@@ -192,6 +196,19 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
       </div>
     </article>
   );
+
+  // Named campaigns are clickable; uncategorised tiles are not
+  if (!isUncategorised && s.campaign_id) {
+    return (
+      <Link
+        href={`/campaigns/${s.campaign_id}`}
+        style={{ textDecoration: "none", display: "block", borderRadius: "14px" }}
+      >
+        {card}
+      </Link>
+    );
+  }
+  return card;
 }
 
 // ── Grid ──────────────────────────────────────────────────────────────────────
