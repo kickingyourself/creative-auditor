@@ -475,8 +475,9 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
         background: "rgba(0,0,0,0.6)",
         backdropFilter: "blur(6px)",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "flex-end",
+        overflowY: "auto",
       }}
     >
       {/* Slide-in panel */}
@@ -484,7 +485,8 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
         style={{
           width: "100%",
           maxWidth: 440,
-          height: "100%",
+          minHeight: "100%",
+          height: "auto",
           background: "var(--color-surface)",
           borderLeft: "1px solid var(--color-border)",
           display: "flex",
@@ -542,7 +544,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
         )}
 
         {/* ── Form fields ── */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+        <div style={{ padding: "24px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
             {/* Brand */}
