@@ -30,6 +30,7 @@ interface CreativeRow {
   campaign_id: string | null;
   platform: string;
   source_url: string;
+  title: string | null;          // user-set title (migration 003); null = auto-derive
   thumbnail_url: string | null;
   view_count: number | null;
   engagement_rate: number | null;
@@ -44,23 +45,24 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
   const brandName = row.brands?.name ?? null;
   const brandLogoUrl = row.brands?.logo_url ?? null;
 
-  // Derive a human-readable title from context
-  let title = row.source_url;
+  // Use the user-set title from DB if present, otherwise derive from URL
+  let derivedTitle = row.source_url;
   try {
     const url = new URL(row.source_url);
     if (row.platform === "youtube") {
       const videoId = url.searchParams.get("v") ?? url.pathname.split("/").pop();
-      title = `${brandName ?? "YouTube"} · ${videoId}`;
+      derivedTitle = `${brandName ?? "YouTube"} · ${videoId}`;
     } else if (row.platform === "homepage") {
-      title = `${brandName ?? url.hostname} — Homepage`;
+      derivedTitle = `${brandName ?? url.hostname} — Homepage`;
     } else if (row.platform === "tiktok") {
-      title = `${brandName ?? "TikTok"} · ${url.pathname.split("/").pop()}`;
+      derivedTitle = `${brandName ?? "TikTok"} · ${url.pathname.split("/").pop()}`;
     } else {
-      title = url.hostname.replace(/^www\./, "");
+      derivedTitle = url.hostname.replace(/^www\./, "");
     }
   } catch {
-    /* keep source_url as title */
+    /* keep source_url as derivedTitle */
   }
+  const title = row.title ?? derivedTitle;
 
   const adType: Creative["ad_type"] =
     row.platform === "homepage" ? "image" : "video";
@@ -109,7 +111,7 @@ export default async function DashboardPage() {
     // ── Fetch latest 20 creatives with brand name joined ──────────────────────
     const { data: rows, error: rowsErr } = await supabase
       .from("creatives")
-      .select("id, brand_id, campaign_id, platform, source_url, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url)")
+      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url)")
       .order("created_at", { ascending: false })
       .limit(20);
 

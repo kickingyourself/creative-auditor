@@ -44,8 +44,14 @@ export function CreativeGrid({ items }: Props) {
           creative: {
             ...item.creative,
             brand_id:     patch.brand_id,
-            brand_name:   patch.brand_name ?? item.creative.brand_name,
-            title:        patch.title ?? item.creative.title,
+            // Use the newly selected brand name; fall back only if the fetch didn't return it
+            brand_name:   patch.brand_name !== undefined ? patch.brand_name : item.creative.brand_name,
+            // null means "use derived" — keep the current display title on the card
+            // until the next server render which will re-derive correctly.
+            // A non-null string means the user set a custom title — show it immediately.
+            title:        patch.title !== null && patch.title !== undefined
+                            ? patch.title
+                            : item.creative.title,
             created_at:   patch.created_at,
             published_at: patch.created_at,
             campaign_id:  patch.campaign_id,
