@@ -1,12 +1,14 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { Sun, Moon, Search, Bell } from "lucide-react";
+import { Sun, Moon, Search, Bell, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSidebar } from "@/context/SidebarContext";
 
 export function Header() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { toggleMobile } = useSidebar();
 
   useEffect(() => {
     setMounted(true);
@@ -36,6 +38,32 @@ export function Header() {
         transition: "background var(--transition-base)",
       }}
     >
+      {/* Mobile hamburger — hidden on desktop via CSS */}
+      <button
+        id="header-menu-toggle"
+        aria-label="Open navigation"
+        onClick={toggleMobile}
+        className="mobile-menu-btn"
+        style={{
+          display: "none",
+          alignItems: "center", justifyContent: "center",
+          width: 36, height: 36, borderRadius: "8px",
+          border: "1px solid var(--color-border)",
+          background: "transparent",
+          color: "var(--color-text-secondary)",
+          cursor: "pointer",
+          flexShrink: 0,
+          marginRight: "4px",
+        }}
+      >
+        <Menu size={18} />
+      </button>
+      <style>{`
+        @media (max-width: 768px) {
+          .mobile-menu-btn { display: flex !important; }
+        }
+      `}</style>
+
       {/* Search */}
       <div
         style={{

@@ -36,13 +36,26 @@
   --color-error:   #c85a4a;
 
   /* Layout */
-  --sidebar-width:  240px;
-  --header-height:  64px;
+  --sidebar-width:           240px;
+  --sidebar-width-collapsed: 64px;
+  --header-height:           64px;
 
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-base: 250ms ease;
   --transition-slow: 400ms ease;
+}
+
+/* Collapsed desktop sidebar */
+[data-sidebar-collapsed="true"] {
+  --sidebar-width: var(--sidebar-width-collapsed);
+}
+
+/* Mobile: sidebar is an off-canvas drawer — main content fills full width */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+  }
 }
 
 /* Light mode (warm inversion) */
