@@ -42,9 +42,9 @@ const PLATFORM_CONFIG: Record<
     color: "#69c9d0",
     bg: "rgba(105,201,208,0.12)",
   },
-  homepage: {
+  landing_page: {
     icon: Camera,
-    label: "Homepage",
+    label: "Landing Page",
     color: "#22d3a0",
     bg: "rgba(34,211,160,0.12)",
   },

@@ -304,7 +304,7 @@ export async function scrapeHomepage(
   const creativeInsert: CreativeInsert = {
     brand_id: brandId,
     campaign_id: campaignId ?? null,
-    platform: 'homepage',
+    platform: 'landing_page',
     source_url: snapshotUrl,   // includes ?_snapshot=<ISO> for uniqueness
     thumbnail_url: thumbnailUrl,
     view_count: null,

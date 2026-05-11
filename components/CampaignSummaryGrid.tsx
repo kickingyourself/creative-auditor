@@ -35,7 +35,7 @@ interface Props {
 const PLATFORM_COLORS: Record<string, { color: string; bg: string; label: string }> = {
   youtube:  { color: "#ff4444", bg: "rgba(255,68,68,0.12)",   label: "YouTube"  },
   tiktok:   { color: "#ff0050", bg: "rgba(255,0,80,0.12)",    label: "TikTok"   },
-  homepage: { color: "#22d3a0", bg: "rgba(34,211,160,0.12)",  label: "Homepage" },
+  landing_page: { color: "#22d3a0", bg: "rgba(34,211,160,0.12)",  label: "Landing Page" },
   meta:     { color: "#0ea5e9", bg: "rgba(14,165,233,0.12)",  label: "Meta"     },
   social:   { color: "#a78bfa", bg: "rgba(167,139,250,0.12)", label: "Social"   },
   website:  { color: "#fb923c", bg: "rgba(251,146,60,0.12)",  label: "Website"  },

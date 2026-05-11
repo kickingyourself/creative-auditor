@@ -55,8 +55,8 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
     if (row.platform === "youtube") {
       const videoId = url.searchParams.get("v") ?? url.pathname.split("/").pop();
       derivedTitle = `${brandName ?? "YouTube"} · ${videoId}`;
-    } else if (row.platform === "homepage") {
-      derivedTitle = `${brandName ?? url.hostname} — Homepage`;
+    } else if (row.platform === "landing_page") {
+      derivedTitle = `${brandName ?? url.hostname} — Landing Page`;
     } else if (row.platform === "tiktok") {
       derivedTitle = `${brandName ?? "TikTok"} · ${url.pathname.split("/").pop()}`;
     } else {
@@ -68,7 +68,7 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
   const title = row.title ?? derivedTitle;
 
   const adType: Creative["ad_type"] =
-    row.platform === "homepage" ? "image" : "video";
+    row.platform === "landing_page" ? "image" : "video";
 
   return {
     creative: {

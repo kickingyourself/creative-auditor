@@ -62,7 +62,7 @@ function fmtDate(d: string | null | undefined): string {
 
 const PLATFORM_COLORS: Record<string, { color: string; bg: string }> = {
   youtube:      { color: "#ef4444", bg: "rgba(239,68,68,0.14)" },
-  homepage:     { color: "#38bdf8", bg: "rgba(56,189,248,0.14)" },
+  landing_page: { color: "#38bdf8", bg: "rgba(56,189,248,0.14)" },
   tiktok:       { color: "#f472b6", bg: "rgba(244,114,182,0.14)" },
   meta:         { color: "#818cf8", bg: "rgba(129,140,248,0.14)" },
   social:       { color: "#a78bfa", bg: "rgba(167,139,250,0.14)" },
@@ -98,8 +98,8 @@ export function CreativeViewModal({ creative, brandLogoUrl, onClose }: Props) {
   if (typeof document === "undefined") return null;
 
   const isYouTube   = creative.platform === "youtube";
-  const isHomepage  = creative.platform === "homepage";
-  const showLink    = isYouTube || isHomepage;
+  const isLandingPage = creative.platform === "landing_page";
+  const showLink    = isYouTube || isLandingPage;
   const embedUrl    = isYouTube ? getYouTubeEmbedUrl(creative.source_url) : null;
   const pc          = PLATFORM_COLORS[creative.platform] ?? { color: "var(--color-accent)", bg: "rgba(79,179,186,0.14)" };
 
@@ -174,7 +174,7 @@ export function CreativeViewModal({ creative, brandLogoUrl, onClose }: Props) {
                 onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
               >
                 <ExternalLink size={13} />
-                {isYouTube ? "Open on YouTube" : "Open homepage"}
+                {isYouTube ? "Open on YouTube" : "Open landing page"}
               </a>
             )}
 
@@ -291,7 +291,7 @@ export function CreativeViewModal({ creative, brandLogoUrl, onClose }: Props) {
               padding: "4px 10px", borderRadius: "20px",
               textTransform: "uppercase", letterSpacing: "0.06em",
             }}>
-              {creative.platform === "homepage" ? "Landing Page" : creative.platform}
+              {creative.platform === "landing_page" ? "Landing Page" : creative.platform}
             </span>
           </div>
 

@@ -440,7 +440,7 @@ export function ManualUploadForm() {
     { value: "social", label: "Social / Meta" },
     { value: "youtube", label: "YouTube" },
     { value: "tiktok", label: "TikTok" },
-    { value: "homepage", label: "Display / Other" },
+    { value: "landing_page", label: "Landing Page" },
   ];
 
   return (

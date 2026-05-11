@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Maps to the `platform_type` Postgres enum. */
-export type PlatformType = 'youtube' | 'tiktok' | 'homepage' | 'social' | 'pinterest';
+export type PlatformType = 'youtube' | 'tiktok' | 'landing_page' | 'social' | 'pinterest';
 
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
  *
  * Campaign detail dashboard.
  * - Header: brand logo + name, campaign name (title)
- * - Hero: first "homepage" creative thumbnail, or first YouTube if none
+ * - Hero: first "landing_page" creative thumbnail, or first YouTube if none
  * - Channel sections: YouTube → Meta → TikTok → Pinterest →
  *   Programmatic → OOH → TVC
  *   Sections with creatives appear first (in priority order).
@@ -60,8 +60,8 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
     if (row.platform === "youtube") {
       const id = url.searchParams.get("v") ?? url.pathname.split("/").pop();
       derivedTitle = `${brandName ?? "YouTube"} · ${id}`;
-    } else if (row.platform === "homepage") {
-      derivedTitle = `${brandName ?? url.hostname} — Homepage`;
+    } else if (row.platform === "landing_page") {
+      derivedTitle = `${brandName ?? url.hostname} — Landing Page`;
     } else if (row.platform === "tiktok") {
       derivedTitle = `${brandName ?? "TikTok"} · ${url.pathname.split("/").pop()}`;
     } else {
@@ -87,7 +87,7 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
       engagement_rate:  row.engagement_rate,
       duration_seconds: null,
       published_at:     row.created_at,
-      ad_type:          row.platform === "homepage" ? "image" : "video",
+      ad_type:          row.platform === "landing_page" ? "image" : "video",
       status:           "active",
       created_at:       row.created_at,
       updated_at:       row.created_at,
@@ -152,14 +152,14 @@ export default async function CampaignPage(
 
   const allCreatives = (rows as CreativeRow[]).map(toCreative);
 
-  // 3. Hero: prefer homepage, fall back to YouTube
+  // 3. Hero: prefer landing_page, fall back to YouTube
   const hero =
-    allCreatives.find(c => c.creative.platform === "homepage") ??
+    allCreatives.find(c => c.creative.platform === "landing_page") ??
     allCreatives.find(c => c.creative.platform === "youtube") ??
     null;
 
-  // 4. Non-homepage creatives for channel sections
-  const channelCreatives = allCreatives.filter(c => c.creative.platform !== "homepage");
+  // 4. Non-landing-page creatives for channel sections
+  const channelCreatives = allCreatives.filter(c => c.creative.platform !== "landing_page");
 
   // 5. Group creatives by channel key
   function getChannelKey(platform: string): string {
@@ -236,7 +236,7 @@ export default async function CampaignPage(
             overflow: "hidden",
             border: "1px solid var(--color-border)",
             background: "var(--color-surface)",
-            aspectRatio: hero.creative.platform === "homepage" ? "16/7" : "16/9",
+            aspectRatio: hero.creative.platform === "landing_page" ? "16/7" : "16/9",
             position: "relative",
           }}>
             {hero.creative.thumbnail_url ? (
@@ -264,7 +264,7 @@ export default async function CampaignPage(
               padding: "4px 10px", borderRadius: "20px",
               textTransform: "uppercase", letterSpacing: "0.06em",
             }}>
-              {hero.creative.platform === "homepage" ? "Landing Page" : "YouTube"}
+              {hero.creative.platform === "landing_page" ? "Landing Page" : "YouTube"}
             </span>
           </div>
           {hero.creative.title && (

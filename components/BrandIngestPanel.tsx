@@ -24,7 +24,7 @@ function IgIcon({ size = 13 }: { size?: number }) {
   );
 }
 
-type Platform = "homepage" | "youtube" | "facebook" | "instagram" | "pinterest";
+type Platform = "landing_page" | "youtube" | "facebook" | "instagram" | "pinterest";
 
 interface Tab {
   id: Platform;
@@ -37,8 +37,8 @@ interface Tab {
 
 const TABS: Tab[] = [
   {
-    id: "homepage",
-    label: "Homepage",
+    id: "landing_page",
+    label: "Landing Page",
     icon: <Globe size={13} />,
     color: "var(--color-text-secondary)",
     activeColor: "#22d3a0",
@@ -88,7 +88,7 @@ interface BrandIngestPanelProps {
 }
 
 export function BrandIngestPanel({ brandId, brandName }: BrandIngestPanelProps) {
-  const [active, setActive] = useState<Platform>("homepage");
+  const [active, setActive] = useState<Platform>("landing_page");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -146,7 +146,7 @@ export function BrandIngestPanel({ brandId, brandName }: BrandIngestPanelProps) 
         key={`${brandId}-${active}`}
         style={{ animation: "fadeInUp 0.2s ease both" }}
       >
-        {active === "homepage"  && <ScrapeForm brandId={brandId} brandName={brandName} />}
+        {active === "landing_page" && <ScrapeForm brandId={brandId} brandName={brandName} />}
         {active === "youtube"   && <YouTubeIngestForm brandId={brandId} brandName={brandName} />}
         {active === "facebook"  && <FacebookIngestForm brandId={brandId} brandName={brandName} />}
         {active === "instagram" && <InstagramIngestForm brandId={brandId} brandName={brandName} />}

@@ -78,8 +78,8 @@ function mimeToAdType(mime: string): "video" | "image" {
 }
 
 /** Derive platform enum value (validated). */
-function parsePlatform(raw: string | null): "social" | "youtube" | "tiktok" | "homepage" {
-  const allowed = ["social", "youtube", "tiktok", "homepage"] as const;
+function parsePlatform(raw: string | null): "social" | "youtube" | "tiktok" | "landing_page" {
+  const allowed = ["social", "youtube", "tiktok", "landing_page"] as const;
   return allowed.includes(raw as typeof allowed[number])
     ? (raw as typeof allowed[number])
     : "social";
