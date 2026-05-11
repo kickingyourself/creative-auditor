@@ -16,6 +16,8 @@ import {
   ExternalLink,
   Image as ImageIcon,
 } from "lucide-react";
+import { CampaignPicker } from "@/components/CampaignPicker";
+import type { CampaignOption } from "@/components/CampaignPicker";
 
 // ── Pinterest "P" icon (not in lucide) ───────────────────────────────────────
 
@@ -91,10 +93,10 @@ interface Props { brandId: string; brandName?: string; }
 const PINTEREST_RED = "#e60023";
 
 export function PinterestIngestForm({ brandId, brandName }: Props) {
-  const [pinUrl, setPinUrl]           = useState("");
-  const [campaignId, setCampaignId]   = useState("");
-  const [result, setResult]           = useState<Result>(null);
-  const [pending, startTransition]    = useTransition();
+  const [pinUrl, setPinUrl]                   = useState("");
+  const [campaign, setCampaign]               = useState<CampaignOption | null>(null);
+  const [result, setResult]                   = useState<Result>(null);
+  const [pending, startTransition]            = useTransition();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -107,7 +109,7 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
           body: JSON.stringify({
             url:         pinUrl.trim(),
             brand_id:    brandId,
-            campaign_id: campaignId.trim() || null,
+            campaign_id: campaign?.id ?? null,
           }),
         });
         const json = await res.json();
@@ -115,7 +117,7 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
           ? { status: "success", ...json }
           : { status: "error",   ...json }
         );
-        if (res.ok) { setPinUrl(""); setCampaignId(""); }
+        if (res.ok) { setPinUrl(""); setCampaign(null); }
       } catch (err) {
         setResult({
           status: "error",
@@ -179,24 +181,13 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <FieldLabel htmlFor={`pin-campaign-${brandId}`}>
-            Campaign ID <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
+            Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
           </FieldLabel>
-          <input
-            id={`pin-campaign-${brandId}`}
-            type="text"
-            value={campaignId}
-            onChange={(e) => setCampaignId(e.target.value)}
-            placeholder="UUID of an existing campaign"
+          <CampaignPicker
+            brandId={brandId}
+            instanceId={`pinterest-${brandId}`}
             disabled={pending}
-            autoComplete="off"
-            style={{
-              background: "var(--color-surface-2)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "8px", padding: "10px 14px",
-              color: "var(--color-text-primary)", fontSize: "13px",
-              outline: "none", width: "100%", boxSizing: "border-box",
-              opacity: pending ? 0.5 : 1,
-            }}
+            onChange={setCampaign}
           />
         </div>
 

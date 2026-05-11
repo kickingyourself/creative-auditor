@@ -5,6 +5,8 @@ import {
   Link2, Loader2, CheckCircle2, AlertCircle, ExternalLink,
   Eye, BarChart2, RefreshCw, Copy, Check, Film, Image, LayoutGrid,
 } from "lucide-react";
+import { CampaignPicker } from "@/components/CampaignPicker";
+import type { CampaignOption } from "@/components/CampaignPicker";
 
 function FbIcon({ size = 14, color, style }: { size?: number; color?: string; style?: React.CSSProperties }) {
   return (
@@ -124,13 +126,13 @@ interface Props { brandId: string; brandName?: string }
 export function FacebookIngestForm({ brandId, brandName }: Props) {
   // Single ad state
   const [adId, setAdId] = useState("");
-  const [singleCampaign, setSingleCampaign] = useState("");
+  const [singleCampaign, setSingleCampaign] = useState<CampaignOption | null>(null);
   const [singleResult, setSingleResult] = useState<SingleResult>(null);
   const [singlePending, startSingle] = useTransition();
 
   // Bulk account state
   const [accountId, setAccountId] = useState("");
-  const [bulkCampaign, setBulkCampaign] = useState("");
+  const [bulkCampaign, setBulkCampaign] = useState<CampaignOption | null>(null);
   const [bulkResult, setBulkResult] = useState<BulkResult>(null);
   const [bulkPending, startBulk] = useTransition();
 
@@ -147,11 +149,11 @@ export function FacebookIngestForm({ brandId, brandName }: Props) {
       try {
         const res = await fetch("/api/ingest/facebook", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "single", ad_id: adId.trim(), brand_id: brandId, campaign_id: singleCampaign.trim() || null }),
+          body: JSON.stringify({ mode: "single", ad_id: adId.trim(), brand_id: brandId, campaign_id: singleCampaign?.id ?? null }),
         });
         const json = await res.json();
         setSingleResult(res.ok ? { status: "success", ...json } : { status: "error", ...json });
-        if (res.ok) { setAdId(""); setSingleCampaign(""); }
+        if (res.ok) { setAdId(""); setSingleCampaign(null); }
       } catch (err) {
         setSingleResult({ status: "error", error: "Network error", code: "NETWORK_ERROR", detail: err instanceof Error ? err.message : String(err) });
       }
@@ -164,11 +166,11 @@ export function FacebookIngestForm({ brandId, brandName }: Props) {
       try {
         const res = await fetch("/api/ingest/facebook", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "account", ad_account_id: accountId.trim() || null, brand_id: brandId, campaign_id: bulkCampaign.trim() || null, max_results: 10 }),
+          body: JSON.stringify({ mode: "account", ad_account_id: accountId.trim() || null, brand_id: brandId, campaign_id: bulkCampaign?.id ?? null, max_results: 10 }),
         });
         const json = await res.json();
         setBulkResult(res.ok ? { status: "success", ...json } : { status: "error", ...json });
-        if (res.ok) { setAccountId(""); setBulkCampaign(""); }
+        if (res.ok) { setAccountId(""); setBulkCampaign(null); }
       } catch (err) {
         setBulkResult({ status: "error", error: "Network error", code: "NETWORK_ERROR" });
       }
@@ -211,10 +213,8 @@ export function FacebookIngestForm({ brandId, brandName }: Props) {
           <p style={{ fontSize: 11, color: "var(--color-text-muted)" }}>Numeric ad ID from Ads Manager (not creative ID)</p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel htmlFor={`fb-scampaign-${brandId}`}>Campaign ID <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span></FieldLabel>
-          <input id={`fb-scampaign-${brandId}`} type="text" value={singleCampaign} onChange={e => setSingleCampaign(e.target.value)}
-            placeholder="UUID of an existing campaign" disabled={anyPending} autoComplete="off"
-            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", borderRadius: 8, padding: "10px 14px", color: "var(--color-text-primary)", fontSize: 13, outline: "none", opacity: anyPending ? 0.5 : 1 }} />
+          <FieldLabel htmlFor={`fb-scampaign-${brandId}`}>Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span></FieldLabel>
+          <CampaignPicker brandId={brandId} instanceId={`fb-single-${brandId}`} disabled={anyPending} onChange={setSingleCampaign} />
         </div>
         <SubmitBtn id={`btn-fb-single-${brandId}`} disabled={anyPending || !adId.trim()} pending={singlePending}
           label="Ingest Ad" pendingLabel="Fetching…"
@@ -277,10 +277,8 @@ export function FacebookIngestForm({ brandId, brandName }: Props) {
           <p style={{ fontSize: 11, color: "var(--color-text-muted)" }}>Leave blank to use <code style={{ fontSize: 10 }}>META_AD_ACCOUNT_ID</code> env var · fetches 10 most recent ads</p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel htmlFor={`fb-bcampaign-${brandId}`}>Campaign ID <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span></FieldLabel>
-          <input id={`fb-bcampaign-${brandId}`} type="text" value={bulkCampaign} onChange={e => setBulkCampaign(e.target.value)}
-            placeholder="UUID of an existing campaign" disabled={anyPending} autoComplete="off"
-            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", borderRadius: 8, padding: "10px 14px", color: "var(--color-text-primary)", fontSize: 13, outline: "none", opacity: anyPending ? 0.5 : 1 }} />
+          <FieldLabel htmlFor={`fb-bcampaign-${brandId}`}>Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span></FieldLabel>
+          <CampaignPicker brandId={brandId} instanceId={`fb-bulk-${brandId}`} disabled={anyPending} onChange={setBulkCampaign} />
         </div>
         <SubmitBtn id={`btn-fb-bulk-${brandId}`} disabled={anyPending} pending={bulkPending}
           label="Sync Latest 10 Ads" pendingLabel="Syncing account…"
