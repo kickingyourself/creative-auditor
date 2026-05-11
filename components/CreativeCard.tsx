@@ -125,9 +125,9 @@ interface CreativeCardProps {
 }
 
 export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUpdate }: CreativeCardProps) {
-  const platform = PLATFORM_CONFIG[creative.platform];
+  const platform    = PLATFORM_CONFIG[creative.platform] ?? PLATFORM_CONFIG["other"];
   const PlatformIcon = platform.icon;
-  const AdTypeIcon = AD_TYPE_ICON[creative.ad_type];
+  const AdTypeIcon  = AD_TYPE_ICON[creative.ad_type] ?? Image;
 
   // ── Delete flow state ──────────────────────────────────────────────────────
   const [hovered, setHovered]             = useState(false);
