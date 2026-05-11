@@ -17,6 +17,7 @@ import {
   useRef,
   useId,
 } from "react";
+import { createPortal } from "react-dom";
 import { Creative } from "@/types";
 import {
   X,
@@ -415,6 +416,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
     setCampaignName(name);
   }
 
+
   // ── Save ────────────────────────────────────────────────────────────────
   async function handleSave() {
     if (isSaving) return;
@@ -462,8 +464,15 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
     dateValue  !== isoToDateInput(creative.created_at)     ||
     campaignId !== (creative.campaign_id ?? null);
 
-  // ── Render ──────────────────────────────────────────────────────────────
-  return (
+  // ── Lock body scroll while open ──────────────────────────────────────
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // ── Render ────────────────────────────────────────────────────────────
+  const modal = (
     <div
       ref={overlayRef}
       role="dialog"
@@ -471,49 +480,51 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
       aria-label="Edit creative"
       onClick={handleOverlayClick}
       style={{
-        position: "fixed", inset: 0, zIndex: 9998,
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(6px)",
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(0,0,0,0.65)",
+        backdropFilter: "blur(8px)",
         display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "flex-end",
-        overflowY: "auto",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+        boxSizing: "border-box",
       }}
     >
-      {/* Slide-in panel */}
+      {/* Dialog box */}
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
-          maxWidth: 440,
-          height: "auto",
+          maxWidth: 740,
           background: "var(--color-surface)",
-          borderLeft: "1px solid var(--color-border)",
+          borderRadius: 18,
+          border: "1px solid var(--color-border)",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.6)",
+          animation: "editModalIn 220ms cubic-bezier(0.22,1,0.36,1) both",
+          overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          animation: "editPanelIn 260ms cubic-bezier(0.22,1,0.36,1) both",
-          boxShadow: "-24px 0 64px rgba(0,0,0,0.5)",
         }}
       >
         {/* ── Header ── */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "20px 24px",
+          padding: "18px 24px",
           borderBottom: "1px solid var(--color-border)",
-          flexShrink: 0,
         }}>
           <div>
             <p style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", lineHeight: 1.2 }}>
               Edit Creative
             </p>
             <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 3 }}>
-              Update metadata for this asset
+              {creative.title}
             </p>
           </div>
           <button
             onClick={onClose}
             disabled={isSaving}
             id={`edit-creative-close-${creative.id}`}
-            aria-label="Close edit panel"
+            aria-label="Close"
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 34, height: 34, borderRadius: 8,
@@ -521,30 +532,36 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
               border: "1px solid var(--color-border)",
               cursor: isSaving ? "not-allowed" : "pointer",
               opacity: isSaving ? 0.4 : 1,
-              transition: "background 150ms",
             }}
           >
             <X size={15} color="var(--color-text-secondary)" />
           </button>
         </div>
 
-        {/* ── Thumbnail preview strip ── */}
-        {creative.thumbnail_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={creative.thumbnail_url}
-            alt=""
-            style={{
-              width: "100%", height: 140,
-              objectFit: "cover", flexShrink: 0,
-              borderBottom: "1px solid var(--color-border)",
-            }}
-          />
-        )}
+        {/* ── Body: thumbnail + form side-by-side ── */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: creative.thumbnail_url ? "220px 1fr" : "1fr",
+        }}>
+          {/* Thumbnail */}
+          {creative.thumbnail_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={creative.thumbnail_url}
+              alt=""
+              style={{
+                width: "100%",
+                aspectRatio: "4 / 3",
+                objectFit: "cover",
+                borderRight: "1px solid var(--color-border)",
+                display: "block",
+                alignSelf: "stretch",
+              }}
+            />
+          )}
 
-        {/* ── Form fields ── */}
-        <div style={{ padding: "24px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Form */}
+          <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 20 }}>
 
             {/* Brand */}
             <FieldGroup icon={<Layers size={14} />} label="Brand">
@@ -590,11 +607,11 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
               />
             </FieldGroup>
 
-            {/* Campaign — combobox autocomplete */}
+            {/* Campaign */}
             <FieldGroup
               icon={<Layers size={14} />}
               label="Campaign"
-              hint="Search by campaign name — leave empty to remove association"
+              hint="Search by name — leave empty to remove association"
             >
               <CampaignCombobox
                 brandId={brandId}
@@ -611,9 +628,8 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
 
         {/* ── Footer ── */}
         <div style={{
-          padding: "16px 24px",
+          padding: "14px 24px",
           borderTop: "1px solid var(--color-border)",
-          flexShrink: 0,
           display: "flex",
           flexDirection: "column",
           gap: 10,
@@ -643,7 +659,6 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
                 fontSize: 13, fontWeight: 600,
                 cursor: isSaving ? "not-allowed" : "pointer",
                 opacity: isSaving ? 0.4 : 1,
-                transition: "background 150ms",
               }}
             >
               Cancel
@@ -686,9 +701,9 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
       </div>
 
       <style>{`
-        @keyframes editPanelIn {
-          from { transform: translateX(100%); opacity: 0.6; }
-          to   { transform: translateX(0);    opacity: 1;   }
+        @keyframes editModalIn {
+          from { opacity: 0; transform: scale(0.94) translateY(8px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0);   }
         }
         @keyframes spin {
           from { transform: rotate(0deg); }
@@ -697,6 +712,10 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
       `}</style>
     </div>
   );
+
+  // Render into document.body so no ancestor overflow:hidden can clip it
+  if (typeof document === "undefined") return null;
+  return createPortal(modal, document.body);
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
