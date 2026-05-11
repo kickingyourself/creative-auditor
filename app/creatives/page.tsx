@@ -9,8 +9,6 @@ import type { Metadata } from "next";
 import { createServerClient } from "@/utils/supabase/server";
 import { Creative } from "@/types";
 import { CreativeGrid } from "@/components/CreativeGrid";
-import { CampaignSummaryGrid } from "@/components/CampaignSummaryGrid";
-import type { CampaignSummary } from "@/components/CampaignSummaryGrid";
 
 export const metadata: Metadata = {
   title: "Creatives — Creative Audit",
@@ -90,7 +88,6 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
 
 export default async function CreativesPage() {
   let mapped: { creative: Creative; brandLogoUrl: string | null }[] = [];
-  let summaries: CampaignSummary[] = [];
   let dbError = false;
 
   try {
@@ -104,33 +101,6 @@ export default async function CreativesPage() {
 
     if (error) throw error;
     mapped = (rows as CreativeRow[]).map(toCreative);
-
-    // ── Brand+Campaign summary groups ─────────────────────────────────────────
-    const groupMap = new Map<string, CampaignSummary>();
-    for (const row of rows as CreativeRow[]) {
-      const key = `${row.brand_id}::${row.campaign_id ?? "__none__"}`;
-      if (!groupMap.has(key)) {
-        groupMap.set(key, {
-          brand_id:      row.brand_id,
-          brand_name:    row.brands?.name ?? "Unknown Brand",
-          brand_logo_url: row.brands?.logo_url ?? null,
-          campaign_id:   row.campaign_id,
-          campaign_name: row.campaigns?.name ?? null,
-          creative_count: 0,
-          thumbnails: [],
-          platforms: [],
-        });
-      }
-      const g = groupMap.get(key)!;
-      g.creative_count++;
-      if (g.thumbnails.length < 4 && row.thumbnail_url) g.thumbnails.push(row.thumbnail_url);
-      if (!g.platforms.includes(row.platform)) g.platforms.push(row.platform);
-    }
-    summaries = Array.from(groupMap.values()).sort((a, b) => {
-      if (!!a.campaign_id !== !!b.campaign_id) return a.campaign_id ? -1 : 1;
-      return (a.brand_name + (a.campaign_name ?? "")).localeCompare(
-              b.brand_name + (b.campaign_name ?? ""));
-    });
   } catch {
     dbError = true;
   }
@@ -166,11 +136,6 @@ export default async function CreativesPage() {
         }}>
           ⚠️ Could not connect to Supabase. Check your credentials in <code>.env.local</code>.
         </div>
-      )}
-
-      {/* Brand+Campaign overview */}
-      {summaries.length > 0 && (
-        <CampaignSummaryGrid summaries={summaries} />
       )}
 
       {/* Full grid */}
