@@ -15,7 +15,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Maps to the `platform_type` Postgres enum. */
-export type PlatformType = 'youtube' | 'tiktok' | 'homepage' | 'social';
+export type PlatformType = 'youtube' | 'tiktok' | 'homepage' | 'social' | 'pinterest';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Row types  (what Supabase returns from SELECT)
