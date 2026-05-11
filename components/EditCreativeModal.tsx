@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   Search,
   XCircle,
+  PlusCircle,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ function CampaignCombobox({
   // All campaigns for the current brand
   const [campaigns, setCampaigns]   = useState<CampaignOption[]>([]);
   const [loading, setLoading]       = useState(false);
+  const [creating, setCreating]     = useState(false);
   const [open, setOpen]             = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -182,8 +184,31 @@ function CampaignCombobox({
     const v = e.target.value;
     setQuery(v);
     setOpen(true);
-    onQueryChange?.(v);          // notify parent on every keystroke
-    if (!v.trim()) onChange(null, "");  // clear selection when field is emptied
+    onQueryChange?.(v);
+    if (!v.trim()) onChange(null, "");
+  }
+
+  async function handleCreate() {
+    const name = query.trim();
+    if (!name || !brandId || creating) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brand_id: brandId, name }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? "Failed to create campaign");
+      const created: CampaignOption = { id: json.campaign.id, name: json.campaign.name };
+      // Add to local list and select it immediately
+      setCampaigns(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      handleSelect(created);
+    } catch (err) {
+      console.error("Campaign create failed:", err);
+    } finally {
+      setCreating(false);
+    }
   }
 
   const isSelected = value !== null;
@@ -329,7 +354,7 @@ function CampaignCombobox({
         </ul>
       )}
 
-      {/* No results hint */}
+      {/* No results — show Create option */}
       {open && query.trim() && filtered.length === 0 && !loading && (
         <div style={{
           position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
@@ -337,12 +362,32 @@ function CampaignCombobox({
           background: "var(--color-surface)",
           border: "1px solid var(--color-border)",
           borderRadius: 10,
-          padding: "12px 14px",
-          fontSize: 12,
-          color: "var(--color-text-muted)",
           boxShadow: "0 12px 40px rgba(0,0,0,0.4)",
+          overflow: "hidden",
         }}>
-          No campaigns match &ldquo;{query}&rdquo;
+          <button
+            onClick={handleCreate}
+            disabled={creating}
+            style={{
+              width: "100%",
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "11px 14px",
+              background: "none", border: "none",
+              cursor: creating ? "not-allowed" : "pointer",
+              textAlign: "left",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-surface-2)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+          >
+            {creating
+              ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite", color: "var(--color-accent)", flexShrink: 0 }} />
+              : <PlusCircle size={13} style={{ color: "var(--color-accent)", flexShrink: 0 }} />}
+            <span style={{ fontSize: 13, color: "var(--color-text-primary)" }}>
+              {creating ? "Creating…" : <>
+                Create campaign <strong>&ldquo;{query.trim()}&rdquo;</strong>
+              </>}
+            </span>
+          </button>
         </div>
       )}
 

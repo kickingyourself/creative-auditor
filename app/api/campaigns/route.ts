@@ -1,12 +1,11 @@
 /**
  * app/api/campaigns/route.ts
  *
- * GET /api/campaigns?brand_id=<uuid>
- *
- * Returns all campaigns for a brand, ordered by name.
- * Used by the EditCreativeModal campaign autocomplete.
+ * GET  /api/campaigns?brand_id=<uuid>  — list campaigns for a brand
+ * POST /api/campaigns                  — create a new campaign for a brand
  *
  * Response: { campaigns: { id, name, start_date, end_date }[] }
+ *           { campaign: { id, name } }
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -43,4 +42,31 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   return Response.json({ campaigns: data ?? [] });
+}
+
+export async function POST(req: Request): Promise<Response> {
+  let body: { brand_id?: string; name?: string };
+  try { body = await req.json(); }
+  catch { return apiError("INVALID_JSON", "Request body must be valid JSON."); }
+
+  const { brand_id, name } = body;
+  if (!brand_id || !name?.trim()) {
+    return apiError("MISSING_BODY_FIELD", "brand_id and name are required.");
+  }
+
+  let supabase: ReturnType<typeof getSupabase>;
+  try { supabase = getSupabase(); }
+  catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
+
+  const { data, error } = await supabase
+    .from("campaigns")
+    .insert({ brand_id, name: name.trim() })
+    .select("id, name")
+    .single();
+
+  if (error) {
+    return apiError("SUPABASE_INSERT_ERROR", error.message);
+  }
+
+  return Response.json({ campaign: data }, { status: 201 });
 }
