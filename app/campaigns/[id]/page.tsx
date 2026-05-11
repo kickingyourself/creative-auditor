@@ -50,19 +50,21 @@ interface CreativeRow {
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
 function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: string | null } {
-  const platform  = row.platform as Creative["platform"];
-  const brandName = row.brands?.name ?? null;
+  // Normalise legacy 'homepage' rows (pre-migration) to 'landing_page'
+  const rawPlatform = row.platform === "homepage" ? "landing_page" : row.platform;
+  const platform    = rawPlatform as Creative["platform"];
+  const brandName   = row.brands?.name ?? null;
   const brandLogoUrl = row.brands?.logo_url ?? null;
 
   let derivedTitle = row.source_url;
   try {
     const url = new URL(row.source_url);
-    if (row.platform === "youtube") {
+    if (rawPlatform === "youtube") {
       const id = url.searchParams.get("v") ?? url.pathname.split("/").pop();
       derivedTitle = `${brandName ?? "YouTube"} · ${id}`;
-    } else if (row.platform === "landing_page") {
+    } else if (rawPlatform === "landing_page") {
       derivedTitle = `${brandName ?? url.hostname} — Landing Page`;
-    } else if (row.platform === "tiktok") {
+    } else if (rawPlatform === "tiktok") {
       derivedTitle = `${brandName ?? "TikTok"} · ${url.pathname.split("/").pop()}`;
     } else {
       derivedTitle = url.hostname.replace(/^www\./, "");
@@ -80,14 +82,14 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
       platform,
       source_url:       row.source_url,
       thumbnail_url:    row.thumbnail_url,
-      video_url:        row.platform === "youtube" ? row.source_url : null,
+      video_url:        rawPlatform === "youtube" ? row.source_url : null,
       views:            row.view_count,
       likes:            null,
       comments:         null,
       engagement_rate:  row.engagement_rate,
       duration_seconds: null,
       published_at:     row.created_at,
-      ad_type:          row.platform === "landing_page" ? "image" : "video",
+      ad_type:          rawPlatform === "landing_page" ? "image" : "video",
       status:           "active",
       created_at:       row.created_at,
       updated_at:       row.created_at,

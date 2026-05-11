@@ -44,20 +44,22 @@ interface CreativeRow {
 // ─── Mapper: DB row → Creative card interface ─────────────────────────────────
 
 function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: string | null } {
-  const platform = row.platform as Creative["platform"];
-  const brandName = row.brands?.name ?? null;
+  // Normalise legacy 'homepage' rows (pre-migration) to 'landing_page'
+  const rawPlatform  = row.platform === "homepage" ? "landing_page" : row.platform;
+  const platform     = rawPlatform as Creative["platform"];
+  const brandName    = row.brands?.name ?? null;
   const brandLogoUrl = row.brands?.logo_url ?? null;
 
   // Use the user-set title from DB if present, otherwise derive from URL
   let derivedTitle = row.source_url;
   try {
     const url = new URL(row.source_url);
-    if (row.platform === "youtube") {
+    if (rawPlatform === "youtube") {
       const videoId = url.searchParams.get("v") ?? url.pathname.split("/").pop();
       derivedTitle = `${brandName ?? "YouTube"} · ${videoId}`;
-    } else if (row.platform === "landing_page") {
+    } else if (rawPlatform === "landing_page") {
       derivedTitle = `${brandName ?? url.hostname} — Landing Page`;
-    } else if (row.platform === "tiktok") {
+    } else if (rawPlatform === "tiktok") {
       derivedTitle = `${brandName ?? "TikTok"} · ${url.pathname.split("/").pop()}`;
     } else {
       derivedTitle = url.hostname.replace(/^www\./, "");
@@ -68,7 +70,7 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
   const title = row.title ?? derivedTitle;
 
   const adType: Creative["ad_type"] =
-    row.platform === "landing_page" ? "image" : "video";
+    rawPlatform === "landing_page" ? "image" : "video";
 
   return {
     creative: {
@@ -81,7 +83,7 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
       platform,
       source_url:      row.source_url,
       thumbnail_url:   row.thumbnail_url,
-      video_url:       row.platform === "youtube" ? row.source_url : null,
+      video_url:       rawPlatform === "youtube" ? row.source_url : null,
       views:           row.view_count,
       likes:           null,
       comments:        null,
