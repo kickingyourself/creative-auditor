@@ -76,14 +76,15 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
         (e.currentTarget as HTMLElement).style.boxShadow = "none";
       }}
     >
-      {/* ── Thumbnail mosaic ── */}
-      <div style={{ aspectRatio: "1/1", flexShrink: 0, overflow: "hidden" }}>
+      {/* ── Thumbnail mosaic ── guaranteed 1:1 via padding-bottom trick */}
+      <div style={{ position: "relative", width: "100%", paddingBottom: "100%", flexShrink: 0, overflow: "hidden" }}>
         <div
           style={{
+            position: "absolute",
+            inset: 0,
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gridTemplateRows: "1fr 1fr",
-            height: "100%",
             background: "var(--color-surface-2)",
             gap: 0,
           }}
