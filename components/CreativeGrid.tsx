@@ -43,18 +43,15 @@ export function CreativeGrid({ items }: Props) {
           ...item,
           creative: {
             ...item.creative,
-            brand_id:     patch.brand_id,
-            // Use the newly selected brand name; fall back only if the fetch didn't return it
-            brand_name:   patch.brand_name !== undefined ? patch.brand_name : item.creative.brand_name,
-            // null means "use derived" — keep the current display title on the card
-            // until the next server render which will re-derive correctly.
-            // A non-null string means the user set a custom title — show it immediately.
-            title:        patch.title !== null && patch.title !== undefined
-                            ? patch.title
-                            : item.creative.title,
-            created_at:   patch.created_at,
-            published_at: patch.created_at,
-            campaign_id:  patch.campaign_id,
+            brand_id:      patch.brand_id,
+            brand_name:    patch.brand_name !== undefined ? patch.brand_name : item.creative.brand_name,
+            campaign_id:   patch.campaign_id,
+            campaign_name: patch.campaign_name !== undefined ? patch.campaign_name ?? null : item.creative.campaign_name,
+            title:         patch.title !== null && patch.title !== undefined
+                             ? patch.title
+                             : item.creative.title,
+            created_at:    patch.created_at,
+            published_at:  patch.created_at,
           },
         };
       })
@@ -67,7 +64,7 @@ export function CreativeGrid({ items }: Props) {
       className="stagger-children"
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
         gap: "18px",
         alignItems: "start",
       }}

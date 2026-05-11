@@ -19,6 +19,7 @@ import {
   Pencil,
   AlertTriangle,
   Loader2,
+  Layers,
 } from "lucide-react";
 import { EditCreativeModal } from "./EditCreativeModal";
 import type { EditCreativePayload } from "./EditCreativeModal";
@@ -201,7 +202,7 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
         style={{
           position: "relative",
           width: "100%",
-          paddingTop: "56.25%",
+          paddingTop: "48%",
           background: "var(--color-surface-2)",
           overflow: "hidden",
         }}
@@ -339,18 +340,17 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
       </div>
 
       {/* Content */}
-      <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
+      <div style={{ padding: "10px 12px", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
         {/* Title */}
         <h3
           style={{
-            fontSize: "13px",
+            fontSize: "12px",
             fontWeight: 600,
             color: "var(--color-text-primary)",
-            lineHeight: 1.4,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
+            lineHeight: 1.3,
+            whiteSpace: "nowrap",
             overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
           {creative.title}
@@ -361,31 +361,31 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "8px",
+            gap: "5px",
           }}
         >
           {[
-            { icon: Eye,           value: formatNumber(creative.views),           label: "Views" },
-            { icon: Heart,         value: formatNumber(creative.likes),           label: "Likes" },
+            { icon: Eye,           value: formatNumber(creative.views),              label: "Views" },
+            { icon: Heart,         value: formatNumber(creative.likes),              label: "Likes" },
             { icon: MessageCircle, value: formatEngagement(creative.engagement_rate), label: "Engmt" },
           ].map(({ icon: Icon, value, label }) => (
             <div
               key={label}
               style={{
                 background: "var(--color-surface-2)",
-                borderRadius: "8px",
-                padding: "8px",
+                borderRadius: "6px",
+                padding: "5px 4px",
                 textAlign: "center",
               }}
             >
               <Icon
-                size={12}
+                size={10}
                 color="var(--color-text-muted)"
-                style={{ marginBottom: "3px" }}
+                style={{ marginBottom: "2px" }}
               />
               <p
                 style={{
-                  fontSize: "13px",
+                  fontSize: "11px",
                   fontWeight: 700,
                   color: "var(--color-text-primary)",
                   lineHeight: 1,
@@ -395,11 +395,11 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
               </p>
               <p
                 style={{
-                  fontSize: "9px",
+                  fontSize: "8px",
                   color: "var(--color-text-muted)",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
-                  marginTop: "2px",
+                  marginTop: "1px",
                 }}
               >
                 {label}
@@ -408,49 +408,67 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
           ))}
         </div>
 
-        {/* Footer */}
+        {/* Footer — Brand / Campaign / Date + ad_type */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-end",
             justifyContent: "space-between",
             marginTop: "auto",
+            gap: "6px",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "2px",
-            }}
-          >
+          {/* Left col: brand → campaign → date stacked */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: 0 }}>
+
+            {/* Brand */}
             {creative.brand_name && (
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                 {brandLogoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={brandLogoUrl}
                     alt={creative.brand_name}
-                    style={{ width: 16, height: 16, borderRadius: 3, objectFit: "contain", flexShrink: 0 }}
+                    style={{ width: 13, height: 13, borderRadius: 2, objectFit: "contain", flexShrink: 0 }}
                   />
                 ) : (
                   <div style={{
-                    width: 16, height: 16, borderRadius: 3,
+                    width: 13, height: 13, borderRadius: 2,
                     background: platform.bg,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "8px", fontWeight: 800, color: platform.color, flexShrink: 0,
+                    fontSize: "7px", fontWeight: 800, color: platform.color, flexShrink: 0,
                   }}>
                     {creative.brand_name[0]?.toUpperCase()}
                   </div>
                 )}
-                <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                <span style={{
+                  fontSize: "10px", fontWeight: 600,
+                  color: "var(--color-text-secondary)",
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>
                   {creative.brand_name}
                 </span>
               </div>
             )}
+
+            {/* Campaign */}
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <Layers size={10} color={creative.campaign_name ? "var(--color-accent)" : "var(--color-text-muted)"} style={{ flexShrink: 0 }} />
+              <span style={{
+                fontSize: "10px",
+                fontWeight: creative.campaign_name ? 600 : 400,
+                color: creative.campaign_name ? "var(--color-accent)" : "var(--color-text-muted)",
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                fontStyle: creative.campaign_name ? "normal" : "italic",
+              }}>
+                {creative.campaign_name ?? "No campaign"}
+              </span>
+            </div>
+
+            {/* Date */}
             <div style={{ display: "flex", alignItems: "center", gap: "5px",
-              fontSize: "11px", color: "var(--color-text-muted)" }}>
-              <TrendingUp size={11} />
+              fontSize: "10px", color: "var(--color-text-muted)" }}>
+              <TrendingUp size={10} />
               <span>
                 {creative.published_at
                   ? new Date(creative.published_at).toLocaleDateString("en-US", {
@@ -460,15 +478,18 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
               </span>
             </div>
           </div>
+
+          {/* Right: ad_type pill */}
           <span
             style={{
-              fontSize: "10px",
+              fontSize: "9px",
               fontWeight: 600,
               color: platform.color,
               background: platform.bg,
               borderRadius: "4px",
-              padding: "2px 7px",
+              padding: "2px 6px",
               textTransform: "capitalize",
+              flexShrink: 0,
             }}
           >
             {creative.ad_type}

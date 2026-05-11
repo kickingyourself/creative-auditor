@@ -30,12 +30,13 @@ interface CreativeRow {
   campaign_id: string | null;
   platform: string;
   source_url: string;
-  title: string | null;          // user-set title (migration 003); null = auto-derive
+  title: string | null;
   thumbnail_url: string | null;
   view_count: number | null;
   engagement_rate: number | null;
   created_at: string;
   brands: { name: string; logo_url: string | null } | null;
+  campaigns: { name: string } | null;
 }
 
 // ─── Mapper: DB row → Creative card interface ─────────────────────────────────
@@ -72,6 +73,7 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
       id:              row.id,
       brand_id:        row.brand_id,
       campaign_id:     row.campaign_id,
+      campaign_name:   row.campaigns?.name ?? null,
       brand_name:      brandName,
       title,
       platform,
@@ -111,7 +113,7 @@ export default async function DashboardPage() {
     // ── Fetch latest 20 creatives with brand name joined ──────────────────────
     const { data: rows, error: rowsErr } = await supabase
       .from("creatives")
-      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url)")
+      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns(name)")
       .order("created_at", { ascending: false })
       .limit(20);
 
