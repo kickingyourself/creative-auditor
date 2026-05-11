@@ -200,7 +200,7 @@ function CampaignCombobox({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error ?? "Failed to create campaign");
-      const created: CampaignOption = { id: json.campaign.id, name: json.campaign.name };
+      const created: CampaignOption = { id: json.campaign.id, name: json.campaign.name, start_date: null, end_date: null };
       // Add to local list and select it immediately
       setCampaigns(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
       handleSelect(created);
