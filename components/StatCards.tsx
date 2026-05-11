@@ -25,6 +25,8 @@ export function StatCards({ data }: { data: StatCardsData }) {
 
   return (
     <div
+      id="stat-strip"
+      className="stat-strip"
       style={{
         display: "flex",
         alignItems: "center",
@@ -50,6 +52,7 @@ export function StatCards({ data }: { data: StatCardsData }) {
               padding: "10px 18px",
               borderRight: i < stats.length - 1 ? "1px solid var(--color-border)" : "none",
             }}
+            className={`stat-cell stat-cell-${i}`}
           >
             <Icon size={13} color={stat.color} style={{ flexShrink: 0, opacity: 0.8 }} />
             <div>
@@ -78,6 +81,27 @@ export function StatCards({ data }: { data: StatCardsData }) {
           </div>
         );
       })}
+
+      <style>{`
+        @media (max-width: 640px) {
+          .stat-strip {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+          }
+          .stat-cell {
+            border-right: none !important;
+            flex: unset;
+          }
+          /* Right column cells get a left border */
+          .stat-cell-1, .stat-cell-3 {
+            border-left: 1px solid var(--color-border);
+          }
+          /* Top two cells get a bottom border */
+          .stat-cell-0, .stat-cell-1 {
+            border-bottom: 1px solid var(--color-border);
+          }
+        }
+      `}</style>
     </div>
   );
 }

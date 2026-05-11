@@ -14,10 +14,10 @@
 /* ─── PMG-inspired design tokens ─────────────────────────────────────────── */
 
 :root {
-  /* Backgrounds: warm charcoal (PMG's signature near-black) */
-  --color-bg:        #161614;
-  --color-surface:   #1e1e1c;
-  --color-surface-2: #272724;
+  /* Backgrounds: PMG black */
+  --color-bg:        #211f17;
+  --color-surface:   #292720;
+  --color-surface-2: #322f26;
   --color-border:    rgba(255, 255, 255, 0.07);
 
   /* Accent: PMG teal */
