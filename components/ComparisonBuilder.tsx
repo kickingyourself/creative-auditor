@@ -167,8 +167,9 @@ export function ComparisonBuilder({ allCampaigns, initialCampaignIds, snapshotId
         body: JSON.stringify({ name: saveName.trim(), campaign_ids: ids }),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        throw new Error(body?.error?.message ?? `Save failed (HTTP ${res.status})`);
+        // apiError() returns: { error: string, code: string, detail?: string }
+        const body = await res.json().catch(() => ({})) as { error?: string; code?: string; detail?: string };
+        throw new Error(body?.detail ?? body?.error ?? `Save failed (HTTP ${res.status})`);
       }
       // Hard navigate — bypasses Next.js router cache so page re-fetches from DB
       window.location.href = "/competitive";

@@ -185,21 +185,31 @@ export async function scrapeHomepage(
 
     const page = await context.newPage();
 
-    // ── 3a. Block fonts, media & analytics ──────────────────────────────────
-    // Playwright's page.screenshot() waits for web fonts to resolve before
-    // rendering. Aborting font requests skips that wait entirely and also
-    // dramatically speeds up navigation on font-heavy brand sites.
+    // ── 3a. Block fonts, consent managers, analytics ─────────────────────────
+    // • Fonts:   screenshot() waits for font loads — blocking skips that wait.
+    // • Consent: blocking OneTrust / Cookiebot CDNs prevents the banner script
+    //            from loading at all (most reliable suppression technique).
+    // • Analytics/ads: removes persistent polling that slows networkidle.
     await page.route('**/*', (route) => {
       const type = route.request().resourceType();
       const url  = route.request().url();
       const blockUrl = (
-        url.includes('google-analytics')  ||
-        url.includes('googletagmanager')  ||
-        url.includes('doubleclick.net')   ||
-        url.includes('facebook.net')      ||
-        url.includes('hotjar.com')        ||
-        url.includes('analytics')         ||
-        url.includes('segment.io')        ||
+        // Consent managers
+        url.includes('cdn.cookielaw.org')     ||  // OneTrust
+        url.includes('cookiebot.com')         ||  // Cookiebot
+        url.includes('cookie-script.com')     ||  // Cookie Script
+        url.includes('consent.cookiefirst')   ||  // CookieFirst
+        url.includes('trustarc.com')          ||  // TrustArc
+        url.includes('usercentrics.eu')       ||  // Usercentrics
+        url.includes('didomi.io')             ||  // Didomi
+        url.includes('quantcast.com')         ||  // Quantcast CMP
+        // Analytics / ads
+        url.includes('google-analytics')      ||
+        url.includes('googletagmanager')      ||
+        url.includes('doubleclick.net')       ||
+        url.includes('facebook.net')          ||
+        url.includes('hotjar.com')            ||
+        url.includes('segment.io')            ||
         url.includes('optimizely')
       );
       if (type === 'font' || type === 'media' || blockUrl) {
@@ -209,33 +219,105 @@ export async function scrapeHomepage(
       }
     });
 
-    // ── 3b. Navigate — tiered wait strategy ─────────────────────────────────
-    // 'networkidle' fails on pages with persistent polling (PayPal, Stripe…).
-    // Strategy: try 'load' first (DOM + subresources), fall back to
-    // 'domcontentloaded' if that also times out. Either way we get a page.
+    // ── 3b. Pre-populate consent flags before any page script runs ───────────
+    // Many consent managers check localStorage / cookies on init. Setting
+    // recognised keys here causes them to silently skip showing the banner.
+    await page.addInitScript(() => {
+      // OneTrust
+      try { localStorage.setItem('OptanonAlertBoxClosed', new Date().toISOString()); } catch {}
+      try { localStorage.setItem('OptanonConsent', 'isGpcEnabled=0&landingPath=NotLandingPage&groups=C0001%3A1%2CC0002%3A1%2CC0003%3A1%2CC0004%3A1'); } catch {}
+      // Cookiebot
+      try { localStorage.setItem('CookieConsent', JSON.stringify({ necessary: true, preferences: true, statistics: true, marketing: true })); } catch {}
+      // Generic keys used by many home-rolled banners
+      try { localStorage.setItem('cookieConsent',    'true'); } catch {}
+      try { localStorage.setItem('cookie_consent',   'true'); } catch {}
+      try { localStorage.setItem('gdprConsent',      'true'); } catch {}
+      try { localStorage.setItem('gdpr_consent',     'true'); } catch {}
+      try { localStorage.setItem('consent_given',    'true'); } catch {}
+      try { localStorage.setItem('cookies_accepted', 'true'); } catch {}
+      try { localStorage.setItem('hasSeenCookieBanner', 'true'); } catch {}
+      // Set a permissive cookie as well (covers cookie-only implementations)
+      document.cookie = 'cookieconsent_status=dismiss; path=/; max-age=31536000';
+      document.cookie = 'cookie_consent=true; path=/; max-age=31536000';
+      document.cookie = 'OptanonAlertBoxClosed=' + new Date().toISOString() + '; path=/; max-age=31536000';
+    });
+
+    // ── 3c. Navigate — tiered wait strategy ──────────────────────────────────
     try {
-      await page.goto(targetUrl, {
-        waitUntil: 'load',
-        timeout: 20_000,
-      });
+      await page.goto(targetUrl, { waitUntil: 'load', timeout: 20_000 });
     } catch {
-      // If 'load' times out (e.g. lazy scripts never finish), fall back to
-      // domcontentloaded which fires as soon as the HTML is parsed.
       try {
-        await page.goto(targetUrl, {
-          waitUntil: 'domcontentloaded',
-          timeout: 25_000,
-        });
+        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 25_000 });
       } catch (navErr) {
-        throw navErr; // propagate — caught by outer try/catch
+        throw navErr;
       }
     }
 
-    // Short settle for SPAs to render above-the-fold content
+    // Short settle so SPAs render above-the-fold content
     await page.waitForTimeout(1_500);
 
-    // Dismiss common cookie / consent banners
+    // ── 3d. Dismiss any surviving popups / overlays ───────────────────────────
+    // Layer 1 — CSS: force-hide common modal/overlay/cookie patterns.
+    // This catches any banner whose script wasn't blocked and whose localStorage
+    // key we didn't pre-populate.
+    await page.addStyleTag({ content: `
+      /* ── Force-hide common popup / overlay patterns ── */
+      [class*="cookie" i], [id*="cookie" i],
+      [class*="consent" i], [id*="consent" i],
+      [class*="gdpr" i], [id*="gdpr" i],
+      [class*="modal" i]:not(#__snapshot-badge__),
+      [class*="overlay" i]:not(#__snapshot-badge__),
+      [class*="popup" i]:not(#__snapshot-badge__),
+      [class*="banner" i]:not([class*="hero" i]):not([class*="header" i]):not(#__snapshot-badge__),
+      [class*="dialog" i]:not(#__snapshot-badge__),
+      /* Named vendor selectors */
+      #onetrust-banner-sdk, #onetrust-consent-sdk, #onetrust-pc-sdk,
+      .cc-window, .cc-banner, #cookiebanner, .cookie-notice,
+      #cookie-law-info-bar, .cookie-law-info-bar,
+      #CybotCookiebotDialog, .CybotCookiebotDialogBodyButton,
+      #usercentrics-root, .uc-banner,
+      #didomi-host, .didomi-popup,
+      [data-cookiebanner], [data-cookie-consent],
+      .qc-cmp2-container, .qc-cmp-ui-container,
+      /* Fixed/sticky full-screen backdrops */
+      body > div[style*="position: fixed"][style*="z-index"],
+      body > div[style*="position:fixed"][style*="z-index"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      /* Restore body scroll if a modal locked it */
+      html, body { overflow: auto !important; }
+    ` }).catch(() => {/* non-fatal */});
+
+    // Layer 2 — Click common close / accept buttons (with short per-button timeout)
+    const closeSelectors = [
+      // Accept / agree buttons
+      '#onetrust-accept-btn-handler',
+      '.cc-accept', '.cc-dismiss', '.cc-btn.cc-allow',
+      '[data-testid="accept-button"]',
+      '[data-testid="cookie-accept"]',
+      'button[id*="accept" i]', 'button[class*="accept" i]',
+      'button[id*="agree" i]',  'button[class*="agree" i]',
+      // Close / dismiss buttons
+      'button[aria-label*="close" i]',
+      'button[aria-label*="dismiss" i]',
+      'button[aria-label*="reject" i]',
+      '[class*="close-button" i]', '[class*="close_button" i]',
+      '[id*="close-button" i]',
+      '[data-dismiss="modal"]',
+      '.modal-close', '.popup-close', '.dialog-close',
+    ];
+    for (const sel of closeSelectors) {
+      await page.click(sel, { timeout: 400 }).catch(() => {/* element absent — skip */});
+    }
+
+    // Layer 3 — Escape key (closes native <dialog> elements and many JS modals)
     await page.keyboard.press('Escape').catch(() => {/* non-fatal */});
+
+    // Short pause after dismissals
+    await page.waitForTimeout(500);
 
     // ── 4. Inject date stamp overlay ─────────────────────────────────────────
     await page.evaluate((label: string) => {
@@ -265,9 +347,6 @@ export async function scrapeHomepage(
     }, snapshotLabel);
 
     // ── 5. Capture screenshot ────────────────────────────────────────────────
-    // fullPage: false → viewport crop (1440×900) representing the hero.
-    // Explicit timeout overrides the default 30s; fonts are already blocked
-    // so this should resolve quickly.
     const rawBuffer = await page.screenshot({
       type:     'png',
       fullPage: false,
