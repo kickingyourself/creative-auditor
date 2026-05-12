@@ -8,9 +8,6 @@ import {
   Smartphone,
   Globe,
   Share2,
-  Eye,
-  Heart,
-  MessageCircle,
   Clock,
   Play,
   TrendingUp,
@@ -111,17 +108,7 @@ const STATUS_COLORS: Record<Creative["status"], string> = {
   pending: "#f59e0b",
 };
 
-function formatNumber(n: number | null | undefined): string {
-  if (n == null) return "—";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
-}
 
-function formatEngagement(r: number | null | undefined): string {
-  if (r == null) return "—";
-  return `${(r * 100).toFixed(2)}%`;
-}
 
 function formatDuration(seconds: number | null): string {
   if (!seconds) return "—";
@@ -408,57 +395,7 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
           {creative.title}
         </h3>
 
-        {/* Metrics */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "5px",
-          }}
-        >
-          {[
-            { icon: Eye,           value: formatNumber(creative.views),              label: "Views" },
-            { icon: Heart,         value: formatNumber(creative.likes),              label: "Likes" },
-            { icon: MessageCircle, value: formatEngagement(creative.engagement_rate), label: "Engmt" },
-          ].map(({ icon: Icon, value, label }) => (
-            <div
-              key={label}
-              style={{
-                background: "var(--color-surface-2)",
-                borderRadius: "6px",
-                padding: "5px 4px",
-                textAlign: "center",
-              }}
-            >
-              <Icon
-                size={10}
-                color="var(--color-text-muted)"
-                style={{ marginBottom: "2px" }}
-              />
-              <p
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "var(--color-text-primary)",
-                  lineHeight: 1,
-                }}
-              >
-                {value}
-              </p>
-              <p
-                style={{
-                  fontSize: "8px",
-                  color: "var(--color-text-muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginTop: "1px",
-                }}
-              >
-                {label}
-              </p>
-            </div>
-          ))}
-        </div>
+
 
         {/* Footer — Brand / Campaign / Date + ad_type */}
         <div
