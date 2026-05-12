@@ -185,34 +185,59 @@ export async function scrapeHomepage(
 
     const page = await context.newPage();
 
-    // ── 3. Navigate — tiered wait strategy ──────────────────────────────────
-    // 'networkidle' fails on pages with persistent polling (PayPal, Stripe, etc.).
-    // Strategy: try 'load' first (DOM + subresources), then fall back to
+    // ── 3a. Block fonts, media & analytics ──────────────────────────────────
+    // Playwright's page.screenshot() waits for web fonts to resolve before
+    // rendering. Aborting font requests skips that wait entirely and also
+    // dramatically speeds up navigation on font-heavy brand sites.
+    await page.route('**/*', (route) => {
+      const type = route.request().resourceType();
+      const url  = route.request().url();
+      const blockUrl = (
+        url.includes('google-analytics')  ||
+        url.includes('googletagmanager')  ||
+        url.includes('doubleclick.net')   ||
+        url.includes('facebook.net')      ||
+        url.includes('hotjar.com')        ||
+        url.includes('analytics')         ||
+        url.includes('segment.io')        ||
+        url.includes('optimizely')
+      );
+      if (type === 'font' || type === 'media' || blockUrl) {
+        route.abort().catch(() => {/* non-fatal */});
+      } else {
+        route.continue().catch(() => {/* non-fatal */});
+      }
+    });
+
+    // ── 3b. Navigate — tiered wait strategy ─────────────────────────────────
+    // 'networkidle' fails on pages with persistent polling (PayPal, Stripe…).
+    // Strategy: try 'load' first (DOM + subresources), fall back to
     // 'domcontentloaded' if that also times out. Either way we get a page.
     try {
       await page.goto(targetUrl, {
         waitUntil: 'load',
-        timeout: 20_000, // 20 s for load event
+        timeout: 20_000,
       });
     } catch {
       // If 'load' times out (e.g. lazy scripts never finish), fall back to
       // domcontentloaded which fires as soon as the HTML is parsed.
-      await page.goto(targetUrl, {
-        waitUntil: 'domcontentloaded',
-        timeout: 25_000,
-      });
+      try {
+        await page.goto(targetUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: 25_000,
+        });
+      } catch (navErr) {
+        throw navErr; // propagate — caught by outer try/catch
+      }
     }
 
-    // Let any lazy-loaded hero images / animations settle.
-    // 2 s gives SPAs time to render their above-the-fold content.
-    await page.waitForTimeout(2_000);
+    // Short settle for SPAs to render above-the-fold content
+    await page.waitForTimeout(1_500);
 
-    // Dismiss common cookie / consent banners by pressing Escape
-    await page.keyboard.press('Escape').catch(() => {/* non-fatal */ });
+    // Dismiss common cookie / consent banners
+    await page.keyboard.press('Escape').catch(() => {/* non-fatal */});
 
     // ── 4. Inject date stamp overlay ─────────────────────────────────────────
-    // A fixed-position badge is injected into the live DOM so it appears
-    // baked into the PNG. Styled to be legible on any background.
     await page.evaluate((label: string) => {
       const badge = document.createElement('div');
       badge.id = '__snapshot-badge__';
@@ -240,11 +265,14 @@ export async function scrapeHomepage(
     }, snapshotLabel);
 
     // ── 5. Capture screenshot ────────────────────────────────────────────────
-    // fullPage: false → viewport crop (1440×900) which represents the "hero"
+    // fullPage: false → viewport crop (1440×900) representing the hero.
+    // Explicit timeout overrides the default 30s; fonts are already blocked
+    // so this should resolve quickly.
     const rawBuffer = await page.screenshot({
-      type: 'png',
+      type:     'png',
       fullPage: false,
-      clip: { x: 0, y: 0, width: 1440, height: 900 },
+      clip:     { x: 0, y: 0, width: 1440, height: 900 },
+      timeout:  45_000,
     });
 
     screenshotBuffer = Buffer.from(rawBuffer);
