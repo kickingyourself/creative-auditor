@@ -13,15 +13,17 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   X,
+  BarChart2,
 } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 
 const NAV_ITEMS = [
-  { href: "/",          label: "Dashboard", icon: LayoutDashboard },
-  { href: "/brands",    label: "Brands",    icon: Building2 },
-  { href: "/creatives", label: "Creatives", icon: Film },
-  { href: "/upload",    label: "Upload",    icon: UploadCloud },
-  { href: "/settings",  label: "Settings",  icon: Settings },
+  { href: "/",            label: "Dashboard",   icon: LayoutDashboard },
+  { href: "/brands",      label: "Brands",       icon: Building2 },
+  { href: "/creatives",   label: "Creatives",    icon: Film },
+  { href: "/competitive", label: "Competitive",  icon: BarChart2 },
+  { href: "/upload",      label: "Upload",       icon: UploadCloud },
+  { href: "/settings",    label: "Settings",     icon: Settings },
 ];
 
 const COLLAPSED_W  = 64;
