@@ -89,28 +89,37 @@ export function ComparisonBuilder({ allCampaigns, initialCampaignIds, snapshotId
   })();
 
   const loadColumn = useCallback(async (campaignId: string) => {
-    setColData(prev => ({ ...prev, [campaignId]: { ...prev[campaignId], loading: true } }));
+    // Always include channels:[] so renders never see undefined.channels
+    setColData(prev => ({
+      ...prev,
+      [campaignId]: { campaignName: "", brandName: "", brandLogoUrl: null, channels: [], loading: true },
+    }));
     try {
       const res = await fetch(`/api/campaigns/${campaignId}/creatives`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`API ${res.status}${text ? `: ${text.slice(0, 120)}` : ""}`);
+      }
       const json = await res.json() as {
         campaign: { name: string; brand: { name: string; logo_url: string | null } | null };
         channels: ChannelSection[];
       };
+      if (!json?.campaign) throw new Error("Unexpected response — no campaign object returned");
       setColData(prev => ({
         ...prev,
         [campaignId]: {
           campaignName: json.campaign.name,
           brandName: json.campaign.brand?.name ?? "",
           brandLogoUrl: json.campaign.brand?.logo_url ?? null,
-          channels: json.channels,
+          channels: json.channels ?? [],
           loading: false,
         },
       }));
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       setColData(prev => ({
         ...prev,
-        [campaignId]: { ...prev[campaignId], loading: false, error: String(e) },
+        [campaignId]: { ...prev[campaignId], channels: prev[campaignId]?.channels ?? [], loading: false, error: msg },
       }));
     }
   }, []);
@@ -314,7 +323,18 @@ export function ComparisonBuilder({ allCampaigns, initialCampaignIds, snapshotId
                   </div>
                 )}
 
-                {campaignId && !data?.loading && data?.channels.map(ch => (
+                {campaignId && !data?.loading && data?.error && (
+                  <div style={{
+                    padding: "14px 16px", borderRadius: 10, marginTop: 8,
+                    background: "rgba(244,63,94,0.06)",
+                    border: "1px solid rgba(244,63,94,0.2)",
+                  }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#f43f5e", marginBottom: 4 }}>Failed to load creatives</p>
+                    <p style={{ fontSize: 11, color: "var(--color-text-muted)", fontFamily: "monospace", wordBreak: "break-all" }}>{data.error}</p>
+                  </div>
+                )}
+
+                {campaignId && !data?.loading && !data?.error && (data?.channels ?? []).map(ch => (
                   <section key={ch.key} style={{ marginBottom: 32 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                       <Layers size={13} color="var(--color-text-muted)" />
@@ -336,7 +356,7 @@ export function ComparisonBuilder({ allCampaigns, initialCampaignIds, snapshotId
                   </section>
                 ))}
 
-                {campaignId && !data?.loading && data?.channels.length === 0 && (
+                {campaignId && !data?.loading && !data?.error && (data?.channels ?? []).length === 0 && (
                   <p style={{ fontSize: 13, color: "var(--color-text-muted)", textAlign: "center", marginTop: 40 }}>
                     No creatives in this campaign yet.
                   </p>
