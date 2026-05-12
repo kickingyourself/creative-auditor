@@ -21,7 +21,7 @@
  *   "channel_url": string,   // Any of the above YouTube channel URL formats
  *   "brand_id":    string,   // UUID of the owning brand
  *   "campaign_id": string?,  // Optional UUID of a campaign
- *   "max_results": number?   // How many videos to fetch (1–10, default 5)
+ *   "max_results": number?   // How many videos to fetch (1–50, default 15)
  * }
  *
  * Success response (200):
@@ -247,7 +247,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const brandId    = brand_id.trim();
   const campaignId = toUuidOrNull(typeof campaign_id === "string" ? campaign_id : null);
-  const maxResults = Math.min(Math.max(typeof max_results === "number" ? max_results : 5, 1), 10);
+  const maxResults = Math.min(Math.max(typeof max_results === "number" ? max_results : 15, 1), 50);
 
   // ── 2. Parse channel URL ───────────────────────────────────────────────────
   const parsed = parseChannelUrl(channel_url);

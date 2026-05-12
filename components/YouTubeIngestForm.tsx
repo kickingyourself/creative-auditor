@@ -278,7 +278,7 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
             channel_url: channelUrl.trim(),
             brand_id: brandId,
             campaign_id: channelCampaign?.id ?? null,
-            max_results: 5,
+            max_results: 15,
           }),
         });
         const json = await res.json();
