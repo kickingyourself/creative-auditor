@@ -12,7 +12,7 @@
  * - Renders the empty channel label strip
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Layers, Crown } from "lucide-react";
 import { Creative } from "@/types";
 import { CreativeGrid } from "@/components/CreativeGrid";
@@ -130,9 +130,23 @@ export function CampaignChannelSections({
   brandLogoUrl,
   initialHeroCreativeId,
 }: Props) {
-  // The currently pinned hero (null = use fallback)
+  const HERO_KEY = `campaign-hero-${campaignId}`;
+
+  // Initialize from DB value (null until migration runs)
   const [heroCreativeId, setHeroCreativeId] = useState<string | null>(initialHeroCreativeId);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  // On mount: if DB returned null (migration pending), read from localStorage
+  useEffect(() => {
+    if (initialHeroCreativeId !== null) {
+      // DB is the source of truth — clear any stale localStorage entry
+      localStorage.removeItem(HERO_KEY);
+    } else {
+      const stored = localStorage.getItem(HERO_KEY);
+      if (stored) setHeroCreativeId(stored);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignId]);
 
   // Resolve the hero item to display in the banner:
   // 1. Pinned creative (if set)
@@ -145,12 +159,18 @@ export function CampaignChannelSections({
     undefined;
 
   const handleToggleHero = useCallback(async (creativeId: string) => {
-    if (togglingId) return; // prevent double-click during in-flight request
+    if (togglingId) return;
     const newHeroId = heroCreativeId === creativeId ? null : creativeId;
 
-    // Optimistic update
+    // Optimistic update + localStorage persistence (survives page reloads
+    // until the DB migration runs and takes over)
     setHeroCreativeId(newHeroId);
     setTogglingId(creativeId);
+    if (newHeroId) {
+      localStorage.setItem(HERO_KEY, newHeroId);
+    } else {
+      localStorage.removeItem(HERO_KEY);
+    }
 
     try {
       await fetch(`/api/campaigns/${campaignId}/hero`, {
@@ -159,12 +179,17 @@ export function CampaignChannelSections({
         body: JSON.stringify({ creative_id: newHeroId }),
       });
     } catch {
-      // Rollback on failure
+      // Rollback
       setHeroCreativeId(heroCreativeId);
+      if (heroCreativeId) {
+        localStorage.setItem(HERO_KEY, heroCreativeId);
+      } else {
+        localStorage.removeItem(HERO_KEY);
+      }
     } finally {
       setTogglingId(null);
     }
-  }, [campaignId, heroCreativeId, togglingId]);
+  }, [campaignId, heroCreativeId, togglingId, HERO_KEY]);
 
   return (
     <>
