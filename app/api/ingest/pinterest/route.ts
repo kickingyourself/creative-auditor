@@ -47,12 +47,37 @@ interface PinterestOEmbed {
 function normalisePinterestUrl(raw: string): string | null {
   try {
     const url = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
-    const validHosts = ["pinterest.com", "www.pinterest.com", "pin.it"];
+    const validHosts = ["pinterest.com", "www.pinterest.com", "pin.it",
+      "pinterest.co.uk", "pinterest.fr", "pinterest.de", "pinterest.es",
+      "pinterest.com.au", "pinterest.ca", "pinterest.jp"];
     if (!validHosts.some(h => url.hostname === h)) return null;
-    // pin.it short-links are fine; pinterest.com/pin/<ID>/ is canonical
     return url.toString();
   } catch {
     return null;
+  }
+}
+
+/**
+ * Resolve a pin.it (or any Pinterest) shortlink to a clean canonical URL.
+ * pin.it links often redirect to /pin/{ID}/sent/?invite_code=... —
+ * we strip the invite path and query to get /pin/{ID}/
+ */
+async function resolveToCanonical(url: string): Promise<string> {
+  try {
+    const BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
+      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+    const res = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      headers: { "User-Agent": BROWSER_UA },
+    });
+    const finalUrl = res.url || url;
+    // Extract /pin/{ID}/ from any path variation
+    const m = finalUrl.match(/\/pin\/(\d+)/);
+    if (m) return `https://www.pinterest.com/pin/${m[1]}/`;
+    return finalUrl;
+  } catch {
+    return url; // fall back to original
   }
 }
 
@@ -74,34 +99,43 @@ export async function POST(request: Request): Promise<Response> {
   if (!canonicalUrl)
     return apiError("INVALID_URL", `Not a valid Pinterest URL: ${url}`);
 
-  // 3. Fetch Pinterest oEmbed (public endpoint, no key needed)
-  const oEmbedUrl = `https://www.pinterest.com/oembed.json?url=${encodeURIComponent(canonicalUrl)}`;
+  // 3. Resolve shortlinks / invite links → clean canonical pin URL
+  const resolvedUrl = await resolveToCanonical(canonicalUrl);
+
+  // 4. Fetch Pinterest oEmbed (public endpoint, no key needed)
+  const BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+  const oEmbedUrl = `https://www.pinterest.com/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
   let meta: PinterestOEmbed;
   try {
     const res = await fetch(oEmbedUrl, {
-      headers: { "User-Agent": "CreativeAudit/1.0" },
+      headers: { "User-Agent": BROWSER_UA },
     });
     if (res.status === 404)
-      return apiError("PIN_NOT_FOUND", `No public Pinterest pin found at: ${canonicalUrl}`);
+      return apiError("PIN_NOT_FOUND", `No public Pinterest pin found at: ${resolvedUrl}`);
     if (!res.ok)
       return apiError("UPSTREAM_ERROR", `Pinterest oEmbed responded with ${res.status}`);
-    meta = (await res.json()) as PinterestOEmbed;
+    const json = await res.json() as PinterestOEmbed & { error?: string };
+    // Pinterest returns HTTP 200 with an error payload for unsupported URLs
+    if (json.error)
+      return apiError("PIN_NOT_FOUND", `Pinterest rejected URL: ${json.error} (resolved: ${resolvedUrl})`);
+    meta = json;
   } catch (err) {
     return apiError("UPSTREAM_ERROR", `Network error contacting Pinterest: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  // 4. Build creative row
+  // 5. Build creative row
   const creativeInsert: CreativeInsert = {
     brand_id:        brand_id as string,
     campaign_id:     typeof campaign_id === "string" && campaign_id.trim() ? campaign_id.trim() : null,
     platform:        "pinterest" as const,
-    source_url:      canonicalUrl,
+    source_url:      resolvedUrl,
     thumbnail_url:   meta.thumbnail_url ?? null,
     view_count:      null,
     engagement_rate: null,
   };
 
-  // 5. Upsert into Supabase
+  // 6. Upsert into Supabase
   let supabase;
   try { supabase = getSupabase(); }
   catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
@@ -121,10 +155,10 @@ export async function POST(request: Request): Promise<Response> {
   return Response.json({
     creative,
     meta: {
-      title:         meta.title ?? null,
+      title:         meta.title ?? meta.author_name ?? null,
       author:        meta.author_name ?? null,
       thumbnail_url: meta.thumbnail_url ?? null,
-      pin_url:       canonicalUrl,
+      pin_url:       resolvedUrl,
     },
   }, { status: 201 });
 }
