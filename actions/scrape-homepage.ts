@@ -157,10 +157,28 @@ export async function scrapeHomepage(
 
   let browser;
   try {
+    const stealthArgs = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      // Remove automation indicators that bot detectors look for
+      '--disable-blink-features=AutomationControlled',
+      // Mimic a real desktop Chrome install
+      '--disable-infobars',
+      '--disable-extensions',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-default-apps',
+      '--disable-features=TranslateUI',
+      // Needed for proper rendering in headless
+      '--hide-scrollbars',
+      '--mute-audio',
+      '--window-size=1440,900',
+    ];
     browser = await chromium.launch({
       headless: true,
       executablePath: executablePath || undefined,
-      args: launchArgs,
+      args: isLambda && sparticuzChromium ? sparticuzChromium.args : stealthArgs,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -175,15 +193,90 @@ export async function scrapeHomepage(
   try {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 900 },
-      // Appear as a real desktop browser to avoid bot-detection soft-blocks
       userAgent:
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ' +
         'AppleWebKit/537.36 (KHTML, like Gecko) ' +
         'Chrome/124.0.0.0 Safari/537.36',
-      locale: 'en-US',
+      locale: 'en-GB',
+      timezoneId: 'Europe/London',
+      // Realistic HTTP request headers that match the UA
+      extraHTTPHeaders: {
+        'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-GB,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Sec-Fetch-Dest':  'document',
+        'Sec-Fetch-Mode':  'navigate',
+        'Sec-Fetch-Site':  'none',
+        'Sec-Fetch-User':  '?1',
+        'Upgrade-Insecure-Requests': '1',
+      },
     });
 
     const page = await context.newPage();
+
+    // ── Stealth patches (run before any page script) ───────────────────────────
+    // Akamai Bot Manager, Cloudflare, and similar WAFs fingerprint the browser
+    // via JS properties that headless Chrome exposes. Patching them here makes
+    // the browser indistinguishable from a real Chrome desktop session.
+    await page.addInitScript(() => {
+      // 1. Remove the primary automation signal
+      Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+
+      // 2. Add window.chrome — absent in headless, checked by Akamai
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).chrome = {
+        runtime:  {},
+        loadTimes: () => ({}),
+        csi:       () => ({}),
+        app:       {},
+      };
+
+      // 3. Fake a realistic plugins list (headless has 0)
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => {
+          const arr = [
+            { name: 'Chrome PDF Plugin',     filename: 'internal-pdf-viewer',   description: 'Portable Document Format' },
+            { name: 'Chrome PDF Viewer',     filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+            { name: 'Native Client',         filename: 'internal-nacl-plugin',  description: '' },
+          ];
+          Object.setPrototypeOf(arr, PluginArray.prototype);
+          return arr;
+        },
+        configurable: true,
+      });
+
+      // 4. Realistic languages
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-GB', 'en'],
+        configurable: true,
+      });
+
+      // 5. Permissions API — headless returns 'denied' for notifications, real browsers 'default'
+      const origQuery = window.navigator.permissions.query.bind(navigator.permissions);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (navigator.permissions as any).query = (params: any) =>
+        params?.name === 'notifications'
+          ? Promise.resolve({ state: 'default' } as unknown as PermissionStatus)
+          : origQuery(params);
+
+      // 6. Hide automation-related iframe content-window properties
+      // (some Akamai checks iterate iframes looking for webdriver)
+      const origFn = HTMLIFrameElement.prototype.contentWindow;
+      if (origFn) {
+        Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+          get() {
+            const win = origFn;
+            if (win) {
+              try {
+                Object.defineProperty((win as unknown as Window), 'webdriver', { get: () => false });
+              } catch { /* cross-origin — ignore */ }
+            }
+            return win;
+          },
+          configurable: true,
+        });
+      }
+    });
 
     // ── 3a. Block fonts, consent managers, analytics ─────────────────────────
     // • Fonts:   screenshot() waits for font loads — blocking skips that wait.
@@ -318,6 +411,35 @@ export async function scrapeHomepage(
 
     // Short pause after dismissals
     await page.waitForTimeout(500);
+
+    // ── 3e. Simulate minimal user interaction ─────────────────────────────────
+    // Some WAFs (Akamai, PerimeterX) detect zero scroll/mouse activity as a bot
+    // signal. A short scroll-down then back is enough to pass these heuristics.
+    await page.mouse.move(720, 450).catch(() => {});
+    await page.mouse.wheel(0, 300).catch(() => {});
+    await page.waitForTimeout(300);
+    await page.mouse.wheel(0, -300).catch(() => {});
+    await page.waitForTimeout(200);
+
+    // ── 3f. Bot-wall detection ────────────────────────────────────────────────
+    // If the site blocked us (Access Denied, CAPTCHA, rate-limit), the page
+    // title or body text will indicate it. Fail early rather than uploading a
+    // blank/block page as a creative.
+    const botWallDetected = await page.evaluate(() => {
+      const title = (document.title ?? '').toLowerCase();
+      const body  = (document.body?.innerText ?? '').slice(0, 500).toLowerCase();
+      const botPhrases = [
+        'access denied', 'blocked', 'captcha', 'are you human',
+        'bot detected', 'security check', 'ddos protection', 'unusual traffic',
+        'please verify', 'cf-chl', 'ray id',
+      ];
+      return botPhrases.some(p => title.includes(p) || body.includes(p));
+    });
+
+    if (botWallDetected) {
+      const pageTitle = await page.title().catch(() => '');
+      throw new Error(`Bot-wall detected on ${targetUrl} — page title: "${pageTitle}". The site is blocking automated access.`);
+    }
 
     // ── 4. Inject date stamp overlay ─────────────────────────────────────────
     await page.evaluate((label: string) => {
