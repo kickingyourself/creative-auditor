@@ -378,7 +378,6 @@ export function BrandCard({ brand, index, onDelete }: BrandCardProps) {
                   cursor: confirmed && !isDeleting ? "pointer" : "not-allowed",
                   display: "flex", alignItems: "center", gap: 7,
                   transition: "background 200ms",
-                  boxShadow: confirmed ? "0 4px 14px rgba(244,63,94,0.35)" : "none",
                 }}
               >
                 {isDeleting

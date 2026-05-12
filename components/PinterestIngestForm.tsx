@@ -206,7 +206,6 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
             cursor: disabled ? "not-allowed" : "pointer",
             opacity: disabled ? 0.6 : 1,
             transition: "opacity 200ms",
-            boxShadow: disabled ? "none" : "0 4px 12px rgba(230,0,35,0.25)",
           }}
         >
           {pending

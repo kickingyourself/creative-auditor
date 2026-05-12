@@ -183,22 +183,11 @@ export function ScrapeForm({ brandId, brandName }: ScrapeFormProps) {
             fontSize: "13px",
             fontWeight: 600,
             cursor: pending ? "not-allowed" : "pointer",
-            transition: "opacity 200ms ease, transform 150ms ease",
+            transition: "opacity 200ms ease",
             opacity: pending ? 0.7 : 1,
-            boxShadow: pending ? "none" : "0 4px 12px rgba(34,211,160,0.25)",
           }}
-          onMouseEnter={(e) => {
-            if (!pending) {
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
-              (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                "0 6px 20px rgba(34,211,160,0.35)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow =
-              "0 4px 12px rgba(34,211,160,0.25)";
-          }}
+          onMouseEnter={undefined}
+          onMouseLeave={undefined}
         >
           {pending ? (
             <>

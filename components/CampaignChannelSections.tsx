@@ -57,11 +57,7 @@ function HeroBanner({ item }: { item: { creative: Creative; brandLogoUrl: string
       <div style={{
         borderRadius: "16px",
         overflow: "hidden",
-        border: "1px solid rgba(251,191,36,0.35)",
-        background: "var(--color-surface)",
-        aspectRatio: "16/7",
-        position: "relative",
-        boxShadow: "0 0 0 1px rgba(251,191,36,0.12), 0 8px 32px rgba(251,191,36,0.08)",
+        border: "1.5px solid rgba(251,191,36,0.65)",
       }}>
         {creative.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element

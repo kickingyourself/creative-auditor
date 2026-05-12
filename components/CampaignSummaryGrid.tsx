@@ -61,19 +61,17 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        transition: "border-color 200ms ease, box-shadow 200ms ease",
+        transition: "border-color 200ms ease",
         cursor: isUncategorised ? "default" : "pointer",
         textDecoration: "none",
       }}
       onMouseEnter={(e) => {
         if (!isUncategorised) {
-          (e.currentTarget as HTMLElement).style.borderColor = "var(--color-accent)";
-          (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(34,211,160,0.12)";
+          (e.currentTarget as HTMLElement).style.borderColor = "rgba(34,211,160,0.45)";
         }
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border)";
-        (e.currentTarget as HTMLElement).style.boxShadow = "none";
       }}
     >
       {/* ── Thumbnail mosaic ── 4 quadrants, absolutely positioned so portrait images can't break the 1:1 shape */}

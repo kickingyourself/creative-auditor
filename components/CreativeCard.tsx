@@ -191,23 +191,19 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
         borderRadius: "14px",
         overflow: "hidden",
         cursor: "pointer",
-        transition: "transform var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base)",
+        transition: "transform var(--transition-base), border-color var(--transition-base)",
         breakInside: "avoid",
         display: "flex",
         flexDirection: "column",
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLElement;
-        el.style.transform = "translateY(-4px)";
-        el.style.borderColor = "rgba(79, 179, 186, 0.35)";
-        el.style.boxShadow = "0 8px 32px rgba(79, 179, 186, 0.15)";
+        el.style.borderColor = "rgba(79, 179, 186, 0.5)";
         setHovered(true);
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLElement;
-        el.style.transform = "translateY(0)";
         el.style.borderColor = "var(--color-border)";
-        el.style.boxShadow = "none";
         setHovered(false);
       }}
       onClick={() => setShowViewModal(true)}
@@ -317,7 +313,6 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
                 transform: isHero ? "scale(1)" : (hovered ? "scale(1)" : "scale(0.8)"),
                 transition: "opacity 180ms ease, transform 180ms ease, background 150ms ease",
                 pointerEvents: isHero ? "auto" : (hovered ? "auto" : "none"),
-                boxShadow: isHero ? "0 0 10px rgba(251,191,36,0.4)" : "none",
               }}
             >
               <Crown size={12} color={isHero ? "#1a1a1a" : "#fff"} fill={isHero ? "#1a1a1a" : "none"} />
@@ -372,7 +367,6 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
               width: 8, height: 8,
               borderRadius: "50%",
               background: STATUS_COLORS[creative.status],
-              boxShadow: `0 0 6px ${STATUS_COLORS[creative.status]}`,
               flexShrink: 0,
             }}
           />
@@ -666,7 +660,7 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
                 cursor: confirmed && !isDeleting ? "pointer" : "not-allowed",
                 display: "flex", alignItems: "center", gap: 7,
                 transition: "background 200ms",
-                boxShadow: confirmed ? "0 4px 14px rgba(244,63,94,0.35)" : "none",
+                boxShadow: "none",
               }}
             >
               {isDeleting

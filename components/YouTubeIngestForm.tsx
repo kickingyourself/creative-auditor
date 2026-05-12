@@ -382,8 +382,7 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
             color: "#fff", fontSize: "13px", fontWeight: 600,
             cursor: anyPending || !videoUrl.trim() ? "not-allowed" : "pointer",
             opacity: anyPending || !videoUrl.trim() ? 0.6 : 1,
-            transition: "opacity 200ms, transform 150ms",
-            boxShadow: anyPending || !videoUrl.trim() ? "none" : "0 4px 12px rgba(255,68,68,0.25)",
+            transition: "opacity 200ms",
           }}
         >
           {singlePending ? (
@@ -499,8 +498,7 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
             color: "#fff", fontSize: "13px", fontWeight: 600,
             cursor: anyPending || !channelUrl.trim() ? "not-allowed" : "pointer",
             opacity: anyPending || !channelUrl.trim() ? 0.6 : 1,
-            transition: "opacity 200ms, transform 150ms",
-            boxShadow: anyPending || !channelUrl.trim() ? "none" : "0 4px 12px rgba(124,58,237,0.3)",
+            transition: "opacity 200ms",
           }}
         >
           {channelPending ? (
