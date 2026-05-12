@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Trash2, BarChart2, Calendar } from "lucide-react";
+import { Trash2, BarChart2, Calendar, ImageIcon } from "lucide-react";
 
 export interface SnapshotPreviewCampaign {
   id: string;
@@ -30,8 +30,12 @@ export function SnapshotCard({ snapshot, onDelete }: Props) {
   const [deleting, setDeleting] = useState(false);
 
   const campaigns = snapshot.preview_data?.campaigns ?? [];
-  const thumbs = campaigns.map(c => c.first_thumbnail).filter(Boolean) as string[];
+  // Pad to exactly 4 slots so the 2×2 grid always has all quadrants
+  const thumbSlots = [...campaigns.map(c => c.first_thumbnail), null, null, null, null].slice(0, 4) as (string | null)[];
   const date = new Date(snapshot.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  // At least one real thumbnail present
+  const hasAnyThumb = thumbSlots.some(Boolean);
 
   async function handleDelete(e: React.MouseEvent) {
     e.preventDefault();
@@ -56,30 +60,57 @@ export function SnapshotCard({ snapshot, onDelete }: Props) {
         animation: "fadeInUp 0.3s ease both",
       }}
     >
-      {/* Thumbnail mosaic */}
+      {/* ── Square thumbnail mosaic — matches CampaignSummaryGrid exactly ── */}
       <div style={{
-        display: "grid",
-        gridTemplateColumns: thumbs.length > 1 ? "1fr 1fr" : "1fr",
-        gridTemplateRows: thumbs.length > 2 ? "1fr 1fr" : "1fr",
-        gap: 2, background: "var(--color-bg)",
-        aspectRatio: "16/7",
+        position: "relative",
+        width: "100%",
+        paddingBottom: "100%",   // 1:1 square
+        flexShrink: 0,
         overflow: "hidden",
+        background: "var(--color-surface-2)",
       }}>
-        {thumbs.length === 0 && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-surface-2)" }}>
-            <BarChart2 size={32} color="var(--color-text-muted)" style={{ opacity: 0.3 }} />
+        {!hasAnyThumb && (
+          // Full-square empty state
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "var(--color-surface-2)",
+          }}>
+            <BarChart2 size={36} color="var(--color-text-muted)" style={{ opacity: 0.25 }} />
           </div>
         )}
-        {thumbs.slice(0, 4).map((url, i) => (
-          <div key={i} style={{ position: "relative", overflow: "hidden" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        {hasAnyThumb && thumbSlots.map((url, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              top:    i < 2 ? 0 : "50%",
+              left:   i % 2 === 0 ? 0 : "50%",
+              width:  "50%",
+              height: "50%",
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "var(--color-surface-2)",
+            }}
+          >
+            {url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={url}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+            ) : (
+              <ImageIcon size={18} color="var(--color-border)" />
+            )}
           </div>
         ))}
       </div>
 
       {/* Card body */}
-      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, borderTop: "1px solid var(--color-border)" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)", letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

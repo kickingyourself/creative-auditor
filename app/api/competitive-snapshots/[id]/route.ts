@@ -1,10 +1,12 @@
 /**
  * app/api/competitive-snapshots/[id]/route.ts
  * DELETE /api/competitive-snapshots/{id}
- * PATCH  /api/competitive-snapshots/{id}  — update name and/or campaign_ids
+ * PATCH  /api/competitive-snapshots/{id}  — update name and/or campaign_ids,
+ *                                           always rebuilds preview_data from live DB
  */
 import { createClient } from "@supabase/supabase-js";
 import { apiError } from "@/lib/errors";
+import { buildPreviewData } from "@/lib/buildPreviewData";
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -47,6 +49,23 @@ export async function PATCH(
   let supabase: ReturnType<typeof getSupabase>;
   try { supabase = getSupabase(); }
   catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
+
+  // Determine the final campaign_ids (may come from the request or must be read from DB)
+  let finalCampaignIds: string[];
+  if (Array.isArray(campaign_ids) && campaign_ids.length > 0) {
+    finalCampaignIds = campaign_ids as string[];
+  } else {
+    // campaign_ids unchanged — read the current ones so we can still refresh thumbnails
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing } = await (supabase.from("competitive_snapshots") as any)
+      .select("campaign_ids")
+      .eq("id", id)
+      .single();
+    finalCampaignIds = (existing?.campaign_ids as string[]) ?? [];
+  }
+
+  // Always rebuild preview_data so thumbnails reflect the latest creatives
+  patch.preview_data = await buildPreviewData(supabase, finalCampaignIds);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.from("competitive_snapshots") as any)

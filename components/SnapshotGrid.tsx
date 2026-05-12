@@ -1,12 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { SnapshotCard, type SnapshotCardData } from "@/components/SnapshotCard";
 
 interface Props { snapshots: SnapshotCardData[] }
 
 export function SnapshotGrid({ snapshots: initial }: Props) {
   const [snapshots, setSnapshots] = useState(initial);
+  const router = useRouter();
+
+  // Refresh preview_data (thumbnails) in the background on every mount.
+  // The endpoint rebuilds all snapshot preview_data from live creatives,
+  // then we re-fetch the page so updated thumbnails are shown immediately.
+  useEffect(() => {
+    fetch("/api/competitive-snapshots/refresh-previews", { method: "POST" })
+      .then(r => r.ok ? router.refresh() : null)
+      .catch(() => { /* non-fatal — stale thumbnails are fine */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleDelete(id: string) {
     setSnapshots(prev => prev.filter(s => s.id !== id));
