@@ -32,7 +32,6 @@ import { Creative } from "@/types";
 function getYouTubeEmbedUrl(sourceUrl: string): string | null {
   try {
     const url = new URL(sourceUrl);
-    // youtube.com/watch?v=ID  or  youtu.be/ID  or  youtube.com/shorts/ID
     const videoId =
       url.searchParams.get("v") ??
       (url.hostname === "youtu.be" ? url.pathname.slice(1) : null) ??
@@ -41,6 +40,16 @@ function getYouTubeEmbedUrl(sourceUrl: string): string | null {
     return videoId
       ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`
       : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Extract Pinterest pin ID from a canonical pinterest.com/pin/{ID}/ URL */
+function getPinId(sourceUrl: string): string | null {
+  try {
+    const m = new URL(sourceUrl).pathname.match(/\/pin\/(\d+)/);
+    return m?.[1] ?? null;
   } catch {
     return null;
   }
@@ -108,21 +117,24 @@ export function CreativeViewModal({ creative, brandLogoUrl, onClose }: Props) {
 
   if (typeof document === "undefined") return null;
 
-  const isYouTube   = creative.platform === "youtube";
+  const isYouTube    = creative.platform === "youtube";
   const isLandingPage = creative.platform === "landing_page";
-  const showLink    = isYouTube || isLandingPage;
-  const embedUrl    = isYouTube ? getYouTubeEmbedUrl(creative.source_url) : null;
-  const pc          = PLATFORM_COLORS[creative.platform] ?? { color: "var(--color-accent)", bg: "rgba(79,179,186,0.14)" };
+  const isPinterest  = creative.platform === "pinterest";
+  const showLink     = isYouTube || isLandingPage || isPinterest;
+  const embedUrl     = isYouTube ? getYouTubeEmbedUrl(creative.source_url) : null;
+  const pinId        = isPinterest ? getPinId(creative.source_url) : null;
+  const pinEmbedUrl  = pinId ? `https://assets.pinterest.com/ext/embed.html?id=${pinId}&src=oembed` : null;
+  const pc           = PLATFORM_COLORS[creative.platform] ?? { color: "var(--color-accent)", bg: "rgba(79,179,186,0.14)" };
 
   // Determine media type
-  const isVideoEmbed  = isYouTube && embedUrl;
+  const isVideoEmbed  = (isYouTube && !!embedUrl) || (isPinterest && !!pinEmbedUrl);
   // For native video: prefer explicit video_url, then fall back to source_url if it's a direct file
   const nativeVideoSrc =
     creative.video_url ||
     (creative.ad_type === "video" && isDirectVideoUrl(creative.source_url)
       ? creative.source_url
       : null);
-  const isNativeVideo = !isYouTube && !!nativeVideoSrc;
+  const isNativeVideo = !isYouTube && !isPinterest && !!nativeVideoSrc;
   const isImage       = !isVideoEmbed && !isNativeVideo;
 
   return createPortal(
@@ -191,7 +203,7 @@ export function CreativeViewModal({ creative, brandLogoUrl, onClose }: Props) {
                 onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
               >
                 <ExternalLink size={13} />
-                {isYouTube ? "Open on YouTube" : "Open landing page"}
+                {isYouTube ? "Open on YouTube" : isPinterest ? "Open on Pinterest" : "Open landing page"}
               </a>
             )}
 
@@ -225,16 +237,41 @@ export function CreativeViewModal({ creative, brandLogoUrl, onClose }: Props) {
           lineHeight: 0,
         }}>
           {/* YouTube embed */}
-          {isVideoEmbed && (
+          {isYouTube && embedUrl && (
             <div style={{ aspectRatio: "16/9" }}>
               <iframe
-                src={embedUrl!}
+                src={embedUrl}
                 style={{ width: "100%", height: "100%", border: "none", display: "block" }}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
                 title={creative.title ?? "YouTube video"}
               />
             </div>
+          )}
+
+          {/* Pinterest embed — handles both image pins and video pins natively */}
+          {isPinterest && pinEmbedUrl && (
+            <div style={{ display: "flex", justifyContent: "center", background: "#000" }}>
+              <iframe
+                src={pinEmbedUrl}
+                style={{ border: "none", display: "block", maxWidth: "100%", maxHeight: "78vh" }}
+                width="450"
+                height="700"
+                scrolling="no"
+                title={creative.title ?? "Pinterest pin"}
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
+              />
+            </div>
+          )}
+
+          {/* Pinterest fallback — no pin ID extractable */}
+          {isPinterest && !pinEmbedUrl && creative.thumbnail_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={creative.thumbnail_url}
+              alt={creative.title ?? ""}
+              style={{ width: "100%", maxHeight: "78vh", objectFit: "contain", display: "block" }}
+            />
           )}
 
           {/* Native video — auto-detect portrait vs landscape */}

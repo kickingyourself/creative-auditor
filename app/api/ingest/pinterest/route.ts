@@ -130,6 +130,7 @@ export async function POST(request: Request): Promise<Response> {
     campaign_id:     typeof campaign_id === "string" && campaign_id.trim() ? campaign_id.trim() : null,
     platform:        "pinterest" as const,
     source_url:      resolvedUrl,
+    title:           meta.title ?? null,
     thumbnail_url:   meta.thumbnail_url ?? null,
     view_count:      null,
     engagement_rate: null,

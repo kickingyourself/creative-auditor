@@ -70,7 +70,7 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
   const title = row.title ?? derivedTitle;
 
   const adType: Creative["ad_type"] =
-    rawPlatform === "landing_page" ? "image" : "video";
+    rawPlatform === "landing_page" || rawPlatform === "pinterest" ? "image" : "video";
 
   return {
     creative: {
