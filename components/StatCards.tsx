@@ -7,18 +7,13 @@ export interface StatCardsData {
   totalBrands: number;
   latestUploadAt: string | null;   // ISO timestamp of the most recently ingested creative
   topPlatform: string;
-  dbSizeMb: number;                // Total storage used in MB
+  totalCampaigns: number;          // Total number of campaigns
 }
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString();
-}
-
-function fmtMb(mb: number): string {
-  if (mb >= 1024) return `${(mb / 1024).toFixed(2)} GB`;
-  return `${mb.toFixed(1)} MB`;
 }
 
 /** Relative time: "2h ago", "just now", "3d ago" */
@@ -77,15 +72,6 @@ export function StatCards({ data }: { data: StatCardsData }) {
       cursor:  false,
     },
     {
-      id:      "stat-latest-upload",
-      label:   "LATEST UPLOAD",
-      value:   relativeTime(data.latestUploadAt),
-      sub:     shortTs(data.latestUploadAt),
-      icon:    Clock,
-      color:   "#22d3a0",
-      cursor:  true,
-    },
-    {
       id:      "stat-top-platform",
       label:   "TOP PLATFORM",
       value:   data.topPlatform || "—",
@@ -95,13 +81,22 @@ export function StatCards({ data }: { data: StatCardsData }) {
       cursor:  false,
     },
     {
-      id:      "stat-db-size",
-      label:   "DB STORAGE",
-      value:   fmtMb(data.dbSizeMb),
+      id:      "stat-total-campaigns",
+      label:   "CAMPAIGNS",
+      value:   fmt(data.totalCampaigns),
       sub:     null,
       icon:    Database,
       color:   "#a78bfa",
       cursor:  false,
+    },
+    {
+      id:      "stat-latest-upload",
+      label:   "LATEST UPLOAD",
+      value:   relativeTime(data.latestUploadAt),
+      sub:     shortTs(data.latestUploadAt),
+      icon:    Clock,
+      color:   "#22d3a0",
+      cursor:  true,
     },
   ];
 
@@ -136,7 +131,6 @@ export function StatCards({ data }: { data: StatCardsData }) {
               gap: "4px",
               padding: "10px 16px",
               borderRight: i < stats.length - 1 ? "1px solid var(--color-border)" : "none",
-              boxShadow: `inset 3px 0 0 ${stat.color}`,
             }}
           >
             {/* Label row */}

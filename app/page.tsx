@@ -108,7 +108,7 @@ export default async function DashboardPage() {
     totalBrands:    0,
     latestUploadAt: null,
     topPlatform:    "—",
-    dbSizeMb:       0,
+    totalCampaigns: 0,
   };
   let summaries: CampaignSummary[] = [];
   let dbError = false;
@@ -131,13 +131,12 @@ export default async function DashboardPage() {
       { count: totalCreatives },
       { count: totalBrands },
       { data: platformData },
-      { data: storageData },
+      { count: totalCampaigns },
     ] = await Promise.all([
       supabase.from("creatives").select("id", { count: "exact", head: true }),
       supabase.from("brands").select("id", { count: "exact", head: true }),
       supabase.from("creatives").select("platform"),
-      // storage.objects has a metadata->size field for each file
-      supabase.from("objects").select("metadata").eq("bucket_id", "creatives"),
+      supabase.from("campaigns").select("id", { count: "exact", head: true }),
     ]);
 
     // Top platform by count
@@ -147,12 +146,6 @@ export default async function DashboardPage() {
     });
     const topPlatform = Object.entries(platformCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
 
-    // Sum file sizes from storage.objects metadata (bytes → MB)
-    const totalBytes = ((storageData ?? []) as { metadata: { size?: number } | null }[]).reduce(
-      (sum, obj) => sum + (obj.metadata?.size ?? 0), 0
-    );
-    const dbSizeMb = totalBytes / (1024 * 1024);
-
     // Latest upload timestamp — rows are already ordered desc by created_at
     const latestUploadAt = (rows as CreativeRow[])[0]?.created_at ?? null;
 
@@ -161,7 +154,7 @@ export default async function DashboardPage() {
       totalBrands:    totalBrands    ?? 0,
       latestUploadAt,
       topPlatform,
-      dbSizeMb,
+      totalCampaigns: totalCampaigns ?? 0,
     };
 
     // ── Brand+Campaign summary ─────────────────────────────────────────────
