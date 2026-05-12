@@ -46,6 +46,8 @@ export interface CampaignRow {
   start_date: string | null;
   /** Inclusive end date in YYYY-MM-DD format. Nullable if ongoing. */
   end_date: string | null;
+  /** FK → creatives.id. The pinned hero creative for the campaign dashboard. Nullable. */
+  hero_creative_id: string | null;
   /** ISO-8601 timestamp of record creation (with timezone). */
   created_at: string;
 }

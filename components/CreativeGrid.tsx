@@ -17,9 +17,13 @@ import type { EditCreativePayload } from "./EditCreativeModal";
 
 interface Props {
   items: { creative: Creative; brandLogoUrl: string | null }[];
+  /** ID of the current hero creative — if set, shows crown UI on all cards */
+  heroCreativeId?: string | null;
+  /** Called when the crown button is toggled on a card */
+  onToggleHero?: (id: string) => void;
 }
 
-export function CreativeGrid({ items }: Props) {
+export function CreativeGrid({ items, heroCreativeId, onToggleHero }: Props) {
   const [list, setList] = useState(items);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
 
@@ -84,6 +88,8 @@ export function CreativeGrid({ items }: Props) {
             brandLogoUrl={brandLogoUrl}
             onDelete={handleDelete}
             onUpdate={handleUpdate}
+            isHero={!!heroCreativeId && creative.id === heroCreativeId}
+            onToggleHero={onToggleHero}
           />
         </div>
       ))}

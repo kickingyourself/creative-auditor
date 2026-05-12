@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Loader2,
   Layers,
+  Crown,
 } from "lucide-react";
 import { EditCreativeModal } from "./EditCreativeModal";
 import type { EditCreativePayload } from "./EditCreativeModal";
@@ -122,9 +123,13 @@ interface CreativeCardProps {
   brandLogoUrl?: string | null;
   onDelete?: (id: string) => void;
   onUpdate?: (id: string, patch: EditCreativePayload & { brand_name?: string; campaign_name?: string }) => void;
+  /** Whether this creative is the campaign hero — shows crown in accent colour. */
+  isHero?: boolean;
+  /** Called when the user clicks the crown button. */
+  onToggleHero?: (id: string) => void;
 }
 
-export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUpdate }: CreativeCardProps) {
+export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUpdate, isHero = false, onToggleHero }: CreativeCardProps) {
   const platform    = PLATFORM_CONFIG[creative.platform] ?? PLATFORM_CONFIG["other"];
   const PlatformIcon = platform.icon;
   const AdTypeIcon  = AD_TYPE_ICON[creative.ad_type] ?? Image;
@@ -292,8 +297,33 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
           {platform.label}
         </div>
 
-        {/* Top-right controls: edit + delete buttons + status dot */}
+        {/* Top-right controls: hero crown + edit + delete buttons + status dot */}
         <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 6 }}>
+
+          {/* Hero crown — always visible when isHero, hover-only otherwise */}
+          {onToggleHero && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleHero(creative.id); }}
+              title={isHero ? "Remove hero" : "Set as hero"}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 28, height: 28,
+                background: isHero ? "rgba(251,191,36,0.9)" : "rgba(0,0,0,0.55)",
+                backdropFilter: "blur(6px)",
+                border: isHero ? "1px solid rgba(251,191,36,0.6)" : "1px solid rgba(255,255,255,0.15)",
+                borderRadius: "7px",
+                cursor: "pointer",
+                opacity: isHero ? 1 : (hovered ? 1 : 0),
+                transform: isHero ? "scale(1)" : (hovered ? "scale(1)" : "scale(0.8)"),
+                transition: "opacity 180ms ease, transform 180ms ease, background 150ms ease",
+                pointerEvents: isHero ? "auto" : (hovered ? "auto" : "none"),
+                boxShadow: isHero ? "0 0 10px rgba(251,191,36,0.4)" : "none",
+              }}
+            >
+              <Crown size={12} color={isHero ? "#1a1a1a" : "#fff"} fill={isHero ? "#1a1a1a" : "none"} />
+            </button>
+          )}
+
           {/* Edit button */}
           <button
             onClick={openEditModal}
