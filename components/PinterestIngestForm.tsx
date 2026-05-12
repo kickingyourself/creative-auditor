@@ -3,23 +3,26 @@
 /**
  * components/PinterestIngestForm.tsx
  *
- * Ingest a single Pinterest pin by URL.
- * Uses the public Pinterest oEmbed endpoint (no API key required).
+ * Two-section form:
+ *   1. Single Pin  — paste a pin URL, save via oEmbed (existing behaviour)
+ *   2. Bulk Profile Sync — paste a brand profile URL, ingest first 15 pins
  */
 
 import { useState, useTransition } from "react";
 import {
   Link2,
+  Globe,
   Loader2,
   CheckCircle2,
   AlertCircle,
   ExternalLink,
   Image as ImageIcon,
+  RefreshCw,
 } from "lucide-react";
 import { CampaignPicker } from "@/components/CampaignPicker";
 import type { CampaignOption } from "@/components/CampaignPicker";
 
-// ── Pinterest "P" icon (not in lucide) ───────────────────────────────────────
+// ── Pinterest "P" icon (not in lucide) ────────────────────────────────────────
 
 function PinIcon({ size = 18 }: { size?: number }) {
   return (
@@ -42,9 +45,30 @@ interface PinterestIngestError {
   code: string;
   detail?: string;
 }
-type Result = PinterestIngestSuccess | PinterestIngestError | null;
+type SingleResult = PinterestIngestSuccess | PinterestIngestError | null;
 
-// ── Shared sub-components (mirrors YouTubeIngestForm style) ──────────────────
+// Bulk profile result types (mirror youtube-channel)
+interface ProfilePinResult {
+  status: "inserted" | "duplicate" | "error";
+  source_url: string;
+  title: string | null;
+  thumbnail_url?: string | null;
+  creative_id?: string;
+  error?: string;
+}
+interface ProfileIngestSuccess {
+  status: "success";
+  summary: { inserted: number; duplicates: number; errors: number; profile: string; max_results: number };
+  results: ProfilePinResult[];
+}
+interface ProfileIngestError {
+  status: "error";
+  error: string;
+  code: string;
+}
+type ProfileResult = ProfileIngestSuccess | ProfileIngestError | null;
+
+// ── Shared sub-components ─────────────────────────────────────────────────────
 
 function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return (
@@ -86,6 +110,53 @@ function InputRow({ id, icon, value, onChange, placeholder, disabled }: {
   );
 }
 
+function Divider({ label }: { label: string }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: "10px",
+      color: "var(--color-text-muted)", fontSize: "11px",
+      fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em",
+    }}>
+      <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
+      {label}
+      <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
+    </div>
+  );
+}
+
+function ErrorBanner({ code, message, detail }: { code: string; message: string; detail?: string }) {
+  return (
+    <div role="alert" style={{
+      display: "flex", gap: "10px", padding: "14px",
+      background: "rgba(244,63,94,0.08)",
+      border: "1px solid rgba(244,63,94,0.2)",
+      borderRadius: "10px",
+    }}>
+      <AlertCircle size={16} color="#f43f5e" style={{ flexShrink: 0, marginTop: 1 }} />
+      <div>
+        <p style={{ fontSize: "13px", fontWeight: 600, color: "#f43f5e", marginBottom: "3px" }}>{code}</p>
+        <p style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>{message}</p>
+        {detail && (
+          <p style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "4px", fontFamily: "monospace" }}>
+            {detail}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const STATUS_COLOR: Record<ProfilePinResult["status"], string> = {
+  inserted:  "#22d3a0",
+  duplicate: "#f59e0b",
+  error:     "#f43f5e",
+};
+const STATUS_LABEL: Record<ProfilePinResult["status"], string> = {
+  inserted:  "Saved",
+  duplicate: "Already exists",
+  error:     "Failed",
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface Props { brandId: string; brandName?: string; }
@@ -93,15 +164,25 @@ interface Props { brandId: string; brandName?: string; }
 const PINTEREST_RED = "#e60023";
 
 export function PinterestIngestForm({ brandId, brandName }: Props) {
-  const [pinUrl, setPinUrl]                   = useState("");
-  const [campaign, setCampaign]               = useState<CampaignOption | null>(null);
-  const [result, setResult]                   = useState<Result>(null);
-  const [pending, startTransition]            = useTransition();
+  // Single pin state
+  const [pinUrl, setPinUrl]               = useState("");
+  const [singleCampaign, setSingleCampaign] = useState<CampaignOption | null>(null);
+  const [singleResult, setSingleResult]   = useState<SingleResult>(null);
+  const [singlePending, startSingleTransition] = useTransition();
 
-  function handleSubmit(e: React.FormEvent) {
+  // Bulk profile state
+  const [profileUrl, setProfileUrl]           = useState("");
+  const [profileCampaign, setProfileCampaign] = useState<CampaignOption | null>(null);
+  const [profileResult, setProfileResult]     = useState<ProfileResult>(null);
+  const [profilePending, startProfileTransition] = useTransition();
+
+  const anyPending = singlePending || profilePending;
+
+  // ── Single pin submit ───────────────────────────────────────────────────────
+  function handleSingleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setResult(null);
-    startTransition(async () => {
+    setSingleResult(null);
+    startSingleTransition(async () => {
       try {
         const res = await fetch("/api/ingest/pinterest", {
           method: "POST",
@@ -109,34 +190,64 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
           body: JSON.stringify({
             url:         pinUrl.trim(),
             brand_id:    brandId,
-            campaign_id: campaign?.id ?? null,
+            campaign_id: singleCampaign?.id ?? null,
           }),
         });
         const json = await res.json();
-        setResult(res.ok
+        setSingleResult(res.ok
           ? { status: "success", ...json }
           : { status: "error",   ...json }
         );
-        if (res.ok) { setPinUrl(""); setCampaign(null); }
+        if (res.ok) { setPinUrl(""); setSingleCampaign(null); }
       } catch (err) {
-        setResult({
-          status: "error",
+        setSingleResult({
+          status: "error", code: "NETWORK_ERROR",
           error: "Network error — could not reach the server.",
-          code: "NETWORK_ERROR",
           detail: err instanceof Error ? err.message : String(err),
         });
       }
     });
   }
 
-  const disabled = pending || !pinUrl.trim();
+  // ── Bulk profile submit ─────────────────────────────────────────────────────
+  function handleProfileSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setProfileResult(null);
+    startProfileTransition(async () => {
+      try {
+        const res = await fetch("/api/ingest/pinterest-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            profile_url: profileUrl.trim(),
+            brand_id:    brandId,
+            campaign_id: profileCampaign?.id ?? null,
+            max_results: 15,
+          }),
+        });
+        const json = await res.json();
+        if (res.ok) {
+          setProfileResult({ status: "success", ...json });
+          setProfileUrl("");
+          setProfileCampaign(null);
+        } else {
+          setProfileResult({ status: "error", ...json });
+        }
+      } catch (err) {
+        setProfileResult({
+          status: "error", code: "NETWORK_ERROR",
+          error: "Network error — could not reach the server.",
+        });
+      }
+    });
+  }
 
   return (
     <div style={{
       background: "var(--color-surface)",
       border: "1px solid var(--color-border)",
       borderRadius: "14px", padding: "24px",
-      display: "flex", flexDirection: "column", gap: "20px",
+      display: "flex", flexDirection: "column", gap: "22px",
     }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -150,18 +261,18 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
         </div>
         <div>
           <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)", letterSpacing: "-0.02em" }}>
-            Pinterest Pin
+            Pinterest Ingestion
           </h3>
           <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
-            {brandName
-              ? `Save a Pinterest pin for ${brandName}`
-              : "Paste a Pinterest pin URL to save it as a creative"}
+            {brandName ? `Single pin or bulk profile sync for ${brandName}` : "Ingest one pin or the latest 15 from a profile"}
           </p>
         </div>
       </div>
 
-      {/* Form */}
-      <form id={`pin-form-${brandId}`} onSubmit={handleSubmit}
+      {/* ══ SINGLE PIN SECTION ═══════════════════════════════════════════════ */}
+      <Divider label="Single Pin" />
+
+      <form id={`pin-form-${brandId}`} onSubmit={handleSingleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -172,7 +283,7 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
             value={pinUrl}
             onChange={setPinUrl}
             placeholder="https://pinterest.com/pin/… or pin.it/…"
-            disabled={pending}
+            disabled={anyPending}
           />
           <p style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px" }}>
             Paste any public Pinterest pin URL · thumbnail fetched automatically
@@ -185,37 +296,37 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
           </FieldLabel>
           <CampaignPicker
             brandId={brandId}
-            instanceId={`pinterest-${brandId}`}
-            disabled={pending}
-            onChange={setCampaign}
+            instanceId={`pinterest-single-${brandId}`}
+            disabled={anyPending}
+            onChange={setSingleCampaign}
           />
         </div>
 
         <button
           id={`btn-pin-ingest-${brandId}`}
           type="submit"
-          disabled={disabled}
+          disabled={anyPending || !pinUrl.trim()}
           style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             padding: "10px 20px", borderRadius: "8px", border: "none",
-            background: disabled
+            background: anyPending || !pinUrl.trim()
               ? "var(--color-surface-2)"
               : `linear-gradient(135deg, ${PINTEREST_RED}, #ad081b)`,
-            color: disabled ? "var(--color-text-muted)" : "#fff",
+            color: anyPending || !pinUrl.trim() ? "var(--color-text-muted)" : "#fff",
             fontSize: "13px", fontWeight: 600,
-            cursor: disabled ? "not-allowed" : "pointer",
-            opacity: disabled ? 0.6 : 1,
+            cursor: anyPending || !pinUrl.trim() ? "not-allowed" : "pointer",
+            opacity: anyPending || !pinUrl.trim() ? 0.6 : 1,
             transition: "opacity 200ms",
           }}
         >
-          {pending
+          {singlePending
             ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Saving pin…</>
             : <><PinIcon size={14} /> Save Pin</>}
         </button>
       </form>
 
-      {/* Success */}
-      {result?.status === "success" && (
+      {/* Single pin success */}
+      {singleResult?.status === "success" && (
         <div role="status" style={{
           display: "flex", flexDirection: "column", gap: "12px",
           padding: "14px",
@@ -229,28 +340,27 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
               <p style={{ fontSize: "13px", fontWeight: 700, color: "#22d3a0", marginBottom: "2px" }}>
                 Pin saved
               </p>
-              {result.meta.title && (
+              {singleResult.meta.title && (
                 <p style={{
-                  fontSize: "12px", fontWeight: 600,
-                  color: "var(--color-text-primary)",
+                  fontSize: "12px", fontWeight: 600, color: "var(--color-text-primary)",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }} title={result.meta.title}>
-                  {result.meta.title}
+                }} title={singleResult.meta.title}>
+                  {singleResult.meta.title}
                 </p>
               )}
-              {result.meta.author && (
+              {singleResult.meta.author && (
                 <p style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px" }}>
-                  by {result.meta.author}
+                  by {singleResult.meta.author}
                 </p>
               )}
             </div>
           </div>
 
-          {result.meta.thumbnail_url ? (
+          {singleResult.meta.thumbnail_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={result.meta.thumbnail_url}
-              alt={result.meta.title ?? "Pinterest pin"}
+              src={singleResult.meta.thumbnail_url}
+              alt={singleResult.meta.title ?? "Pinterest pin"}
               style={{
                 width: "100%", borderRadius: "8px",
                 border: "1px solid var(--color-border)",
@@ -270,7 +380,7 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
           )}
 
           <a
-            href={result.meta.pin_url}
+            href={singleResult.meta.pin_url}
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -279,38 +389,167 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
             }}
           >
             <ExternalLink size={11} />
-            {result.meta.pin_url}
+            {singleResult.meta.pin_url}
           </a>
         </div>
       )}
+      {singleResult?.status === "error" && (
+        <ErrorBanner code={singleResult.code} message={singleResult.error} detail={singleResult.detail} />
+      )}
 
-      {/* Error */}
-      {result?.status === "error" && (
-        <div role="alert" style={{
-          display: "flex", gap: "10px", padding: "14px",
-          background: "rgba(244,63,94,0.08)",
-          border: "1px solid rgba(244,63,94,0.2)",
-          borderRadius: "10px",
-        }}>
-          <AlertCircle size={16} color="#f43f5e" style={{ flexShrink: 0, marginTop: 1 }} />
-          <div>
-            <p style={{ fontSize: "13px", fontWeight: 600, color: "#f43f5e", marginBottom: "3px" }}>
-              {result.code}
-            </p>
-            <p style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>{result.error}</p>
-            {result.detail && (
-              <p style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "4px", fontFamily: "monospace" }}>
-                {result.detail}
-              </p>
-            )}
+      {/* ══ BULK PROFILE SYNC SECTION ════════════════════════════════════════ */}
+      <Divider label="Bulk Profile Sync" />
+
+      <form id={`pin-profile-form-${brandId}`} onSubmit={handleProfileSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <FieldLabel htmlFor={`pin-profile-${brandId}`}>Profile URL</FieldLabel>
+          <InputRow
+            id={`pin-profile-${brandId}`}
+            icon={<Globe size={15} />}
+            value={profileUrl}
+            onChange={setProfileUrl}
+            placeholder="pinterest.com/nike or pinterest.com/adidas"
+            disabled={anyPending}
+          />
+          <p style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px" }}>
+            Ingests the first 15 pins from the profile · duplicates skipped automatically
+          </p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <FieldLabel htmlFor={`pin-profile-campaign-${brandId}`}>
+            Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
+          </FieldLabel>
+          <CampaignPicker
+            brandId={brandId}
+            instanceId={`pinterest-profile-${brandId}`}
+            disabled={anyPending}
+            onChange={setProfileCampaign}
+          />
+        </div>
+
+        <button
+          id={`btn-pin-profile-${brandId}`}
+          type="submit"
+          disabled={anyPending || !profileUrl.trim()}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+            padding: "10px 20px", borderRadius: "8px", border: "none",
+            background: anyPending || !profileUrl.trim()
+              ? "var(--color-surface-2)"
+              : "linear-gradient(135deg, #7c3aed, #e60023)",
+            color: anyPending || !profileUrl.trim() ? "var(--color-text-muted)" : "#fff",
+            fontSize: "13px", fontWeight: 600,
+            cursor: anyPending || !profileUrl.trim() ? "not-allowed" : "pointer",
+            opacity: anyPending || !profileUrl.trim() ? 0.6 : 1,
+            transition: "opacity 200ms",
+          }}
+        >
+          {profilePending
+            ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Syncing profile…</>
+            : <><RefreshCw size={14} /> Sync First 15 Pins</>}
+        </button>
+      </form>
+
+      {/* Bulk profile success */}
+      {profileResult?.status === "success" && (
+        <div role="status" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {/* Summary bar */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: "10px",
+            padding: "12px 14px",
+            background: "rgba(230,0,35,0.08)",
+            border: "1px solid rgba(230,0,35,0.2)",
+            borderRadius: "10px", flexWrap: "wrap",
+          }}>
+            <CheckCircle2 size={15} color="#22d3a0" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text-primary)", flex: 1 }}>
+              @{profileResult.summary.profile} synced
+            </span>
+            {[
+              { label: "Saved",      value: profileResult.summary.inserted,   color: "#22d3a0" },
+              { label: "Duplicates", value: profileResult.summary.duplicates, color: "#f59e0b" },
+              { label: "Errors",     value: profileResult.summary.errors,     color: "#f43f5e" },
+            ].map(({ label, value, color }) => (
+              <span key={label} style={{
+                fontSize: "12px", fontWeight: 700, color,
+                background: `${color}18`, borderRadius: "6px",
+                padding: "3px 10px",
+              }}>
+                {value} {label}
+              </span>
+            ))}
+          </div>
+
+          {/* Per-pin result rows */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {profileResult.results.map((r, i) => (
+              <div key={r.source_url} style={{
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "10px 12px",
+                background: "var(--color-surface-2)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "8px",
+                animation: "fadeInUp 0.3s ease both",
+                animationDelay: `${i * 40}ms`,
+              }}>
+                {/* Thumbnail */}
+                {r.status === "inserted" && r.thumbnail_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={r.thumbnail_url} alt={r.title ?? ""}
+                    style={{ width: 36, height: 36, objectFit: "cover", borderRadius: "6px", flexShrink: 0 }} />
+                ) : (
+                  <div style={{
+                    width: 36, height: 36, background: "var(--color-border)",
+                    borderRadius: "6px", flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <PinIcon size={14} />
+                  </div>
+                )}
+
+                {/* Title + URL */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{
+                    fontSize: "12px", fontWeight: 600, color: "var(--color-text-primary)",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }} title={r.title ?? r.source_url}>
+                    {r.title ?? r.source_url.replace("https://www.pinterest.com/pin/", "Pin ")}
+                  </p>
+                  {r.status === "error" && (
+                    <p style={{ fontSize: "11px", color: "#f43f5e", marginTop: "2px" }}>{r.error}</p>
+                  )}
+                </div>
+
+                {/* Status badge */}
+                <span style={{
+                  fontSize: "10px", fontWeight: 700, flexShrink: 0,
+                  color: STATUS_COLOR[r.status],
+                  background: `${STATUS_COLOR[r.status]}18`,
+                  borderRadius: "5px", padding: "3px 8px",
+                  textTransform: "uppercase", letterSpacing: "0.05em",
+                }}>
+                  {STATUS_LABEL[r.status]}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
+      )}
+      {profileResult?.status === "error" && (
+        <ErrorBanner code={profileResult.code} message={profileResult.error} />
       )}
 
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
