@@ -27,6 +27,7 @@ import {
   Tag,
   Calendar,
   Layers,
+  Monitor,
   CheckCircle2,
   Search,
   XCircle,
@@ -53,6 +54,7 @@ export interface EditCreativePayload {
   title:       string | null;
   created_at:  string;
   campaign_id: string | null;
+  platform:    string;
 }
 
 interface Props {
@@ -74,6 +76,19 @@ function dateInputToIso(value: string): string {
   if (!value) return new Date().toISOString();
   return new Date(`${value}T00:00:00.000Z`).toISOString();
 }
+
+// ── Platform options ──────────────────────────────────────────────────────────
+
+const PLATFORM_OPTIONS: { value: string; label: string }[] = [
+  { value: "landing_page",  label: "Landing Page"          },
+  { value: "youtube",       label: "YouTube"                },
+  { value: "social",        label: "Meta / Social"          },
+  { value: "tiktok",        label: "TikTok"                 },
+  { value: "pinterest",     label: "Pinterest"              },
+  { value: "programmatic",  label: "Programmatic / Display" },
+  { value: "ooh",           label: "OOH / Outdoor"          },
+  { value: "tvc",           label: "TVC / Television"       },
+];
 
 // ── Campaign combobox ─────────────────────────────────────────────────────────
 
@@ -416,6 +431,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
   const [campaignId,   setCampaignId]   = useState<string | null>(creative.campaign_id ?? null);
   const [campaignName, setCampaignName] = useState("");
   const [campaignTouched, setCampaignTouched] = useState(false);
+  const [platform,     setPlatform]     = useState(creative.platform);
 
   // Brands list for the select
   const [brands,        setBrands]        = useState<BrandOption[]>([]);
@@ -478,6 +494,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
       title:       title.trim() || null,
       created_at:  dateInputToIso(dateValue),
       campaign_id: campaignId,
+      platform,
     };
 
     try {
@@ -513,6 +530,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
     (title.trim() || null) !== (creative.title ?? null) ||
     dateValue  !== isoToDateInput(creative.created_at)  ||
     campaignId !== (creative.campaign_id ?? null)        ||
+    platform   !== creative.platform                     ||
     campaignTouched;
 
   // ── Lock body scroll while open ──────────────────────────────────────
@@ -629,6 +647,25 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
                   brands.map((b) => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))
+                )}
+              </select>
+            </FieldGroup>
+
+            {/* Creative Type */}
+            <FieldGroup icon={<Monitor size={14} />} label="Creative Type">
+              <select
+                id={`edit-platform-${creative.id}`}
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value as Creative["platform"])}
+                disabled={isSaving}
+                style={selectStyle}
+              >
+                {PLATFORM_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+                {/* Fallback: show current value if not in standard list */}
+                {!PLATFORM_OPTIONS.some((o) => o.value === platform) && (
+                  <option value={platform}>{platform}</option>
                 )}
               </select>
             </FieldGroup>

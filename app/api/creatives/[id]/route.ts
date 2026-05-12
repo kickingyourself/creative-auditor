@@ -105,6 +105,7 @@ interface CreativePatch {
   title?:       string | null;
   created_at?:  string;
   campaign_id?: string | null;
+  platform?:    string;
 }
 
 export async function PATCH(
@@ -124,18 +125,19 @@ export async function PATCH(
     return apiError("MISSING_BODY_FIELD", "Request body must be valid JSON.");
   }
 
-  const { brand_id, title, created_at, campaign_id } = body;
+  const { brand_id, title, created_at, campaign_id, platform } = body;
 
   // Must supply at least one patchable field
   if (
     brand_id    === undefined &&
     title       === undefined &&
     created_at  === undefined &&
-    campaign_id === undefined
+    campaign_id === undefined &&
+    platform    === undefined
   ) {
     return apiError(
       "MISSING_BODY_FIELD",
-      "Provide at least one of: brand_id, title, created_at, campaign_id."
+      "Provide at least one of: brand_id, title, created_at, campaign_id, platform."
     );
   }
 
@@ -157,9 +159,10 @@ export async function PATCH(
   // Build sparse update payload
   const patch: CreativeUpdate = {};
   if (brand_id    !== undefined) patch.brand_id    = brand_id;
-  if (title       !== undefined) patch.title       = title;       // null clears custom title
+  if (title       !== undefined) patch.title       = title;
   if (created_at  !== undefined) patch.created_at  = created_at;
-  if (campaign_id !== undefined) patch.campaign_id = campaign_id; // null removes association
+  if (campaign_id !== undefined) patch.campaign_id = campaign_id;
+  if (platform    !== undefined) (patch as Record<string, unknown>).platform = platform;
 
   // If brand_id changes, clear campaign_id to avoid cross-brand trigger violation
   const currentBrandId = (existing as { id: string; brand_id: string }).brand_id;

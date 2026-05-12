@@ -79,6 +79,24 @@ const PLATFORM_CONFIG: Record<
     color: "#e60023",
     bg: "rgba(230,0,35,0.12)",
   },
+  programmatic: {
+    icon: Globe,
+    label: "Programmatic",
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.12)",
+  },
+  ooh: {
+    icon: Globe,
+    label: "OOH",
+    color: "#06b6d4",
+    bg: "rgba(6,182,212,0.12)",
+  },
+  tvc: {
+    icon: Globe,
+    label: "TVC",
+    color: "#8b5cf6",
+    bg: "rgba(139,92,246,0.12)",
+  },
 };
 
 const AD_TYPE_ICON: Record<Creative["ad_type"], React.ElementType> = {

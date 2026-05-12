@@ -16,10 +16,13 @@
 
 /** Maps to the `platform_type` Postgres enum.
  *  'homepage' = legacy value still in DB; app layer normalises to 'landing_page' on read.
- *  Run: ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'landing_page';
- *       to fully migrate, then remove 'homepage' from this union.
+ *  Run this in Supabase SQL editor to enable all platform types:
+ *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'landing_page';
+ *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'programmatic';
+ *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'ooh';
+ *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'tvc';
  */
-export type PlatformType = 'youtube' | 'tiktok' | 'landing_page' | 'homepage' | 'social' | 'pinterest';
+export type PlatformType = 'youtube' | 'tiktok' | 'landing_page' | 'homepage' | 'social' | 'pinterest' | 'programmatic' | 'ooh' | 'tvc';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
