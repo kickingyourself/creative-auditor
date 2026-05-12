@@ -14,20 +14,21 @@ export function AddBrandButton() {
         onClick={() => setOpen(true)}
         style={{
           display: "flex", alignItems: "center", gap: "7px",
-          padding: "10px 18px", borderRadius: "8px", border: "none",
+          padding: "10px 18px", borderRadius: "8px",
           background: "var(--color-accent)",
-          color: "#fff", fontSize: "13px", fontWeight: 600,
+          color: "#0a1a1b",
+          fontSize: "13px", fontWeight: 700,
           cursor: "pointer",
-          transition: "opacity 150ms ease, transform 150ms ease",
-          boxShadow: "0 4px 14px rgba(79,179,186,0.3)",
+          transition: "background 200ms ease, border-color 200ms ease",
+          border: "1px solid transparent",
         }}
         onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 20px rgba(79,179,186,0.4)";
+          (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-accent)";
+          (e.currentTarget as HTMLButtonElement).style.background = "#1ab88a";
         }}
         onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 14px rgba(79,179,186,0.3)";
+          (e.currentTarget as HTMLButtonElement).style.borderColor = "transparent";
+          (e.currentTarget as HTMLButtonElement).style.background = "var(--color-accent)";
         }}
       >
         <Plus size={15} />

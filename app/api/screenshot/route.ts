@@ -115,7 +115,13 @@ export async function GET(request: Request): Promise<Response> {
 
     const page = await context.newPage();
 
-    await page.goto(targetUrl, { waitUntil: "networkidle", timeout: navTimeout });
+    // Tiered wait: 'load' first, fall back to 'domcontentloaded' for sites
+    // with persistent connections (PayPal, Stripe, etc.) that never reach networkidle.
+    try {
+      await page.goto(targetUrl, { waitUntil: "load", timeout: navTimeout });
+    } catch {
+      await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: navTimeout });
+    }
     await page.waitForTimeout(settleMs);
     await page.keyboard.press("Escape").catch(() => { });
 

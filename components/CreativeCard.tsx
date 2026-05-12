@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Creative } from "@/types";
 import {
   PlayCircle,
@@ -16,9 +17,15 @@ import {
   Image,
   Camera,
   Trash2,
+  Pencil,
   AlertTriangle,
   Loader2,
+  Layers,
+  Crown,
 } from "lucide-react";
+import { EditCreativeModal } from "./EditCreativeModal";
+import type { EditCreativePayload } from "./EditCreativeModal";
+import { CreativeViewModal } from "./CreativeViewModal";
 
 const PLATFORM_CONFIG: Record<
   Creative["platform"],
@@ -36,9 +43,9 @@ const PLATFORM_CONFIG: Record<
     color: "#69c9d0",
     bg: "rgba(105,201,208,0.12)",
   },
-  homepage: {
+  landing_page: {
     icon: Camera,
-    label: "Homepage",
+    label: "Landing Page",
     color: "#22d3a0",
     bg: "rgba(34,211,160,0.12)",
   },
@@ -65,6 +72,30 @@ const PLATFORM_CONFIG: Record<
     label: "Other",
     color: "#8888a8",
     bg: "rgba(136,136,168,0.12)",
+  },
+  pinterest: {
+    icon: Share2,
+    label: "Pinterest",
+    color: "#e60023",
+    bg: "rgba(230,0,35,0.12)",
+  },
+  programmatic: {
+    icon: Globe,
+    label: "Programmatic",
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.12)",
+  },
+  ooh: {
+    icon: Globe,
+    label: "OOH",
+    color: "#06b6d4",
+    bg: "rgba(6,182,212,0.12)",
+  },
+  tvc: {
+    icon: Globe,
+    label: "TVC",
+    color: "#8b5cf6",
+    bg: "rgba(139,92,246,0.12)",
   },
 };
 
@@ -109,25 +140,37 @@ interface CreativeCardProps {
   index?: number;
   brandLogoUrl?: string | null;
   onDelete?: (id: string) => void;
+  onUpdate?: (id: string, patch: EditCreativePayload & { brand_name?: string; campaign_name?: string }) => void;
+  /** Whether this creative is the campaign hero — shows crown in accent colour. */
+  isHero?: boolean;
+  /** Called when the user clicks the crown button. */
+  onToggleHero?: (id: string) => void;
 }
 
-export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: CreativeCardProps) {
-  const platform = PLATFORM_CONFIG[creative.platform];
+export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUpdate, isHero = false, onToggleHero }: CreativeCardProps) {
+  const platform    = PLATFORM_CONFIG[creative.platform] ?? PLATFORM_CONFIG["other"];
   const PlatformIcon = platform.icon;
-  const AdTypeIcon = AD_TYPE_ICON[creative.ad_type];
+  const AdTypeIcon  = AD_TYPE_ICON[creative.ad_type] ?? Image;
 
   // ── Delete flow state ──────────────────────────────────────────────────────
-  const [hovered, setHovered]         = useState(false);
-  const [showModal, setShowModal]     = useState(false);
-  const [confirmText, setConfirmText] = useState("");
-  const [isDeleting, setIsDeleting]   = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [hovered, setHovered]             = useState(false);
+  const [showModal, setShowModal]         = useState(false);
+  const [confirmText, setConfirmText]     = useState("");
+  const [isDeleting, setIsDeleting]       = useState(false);
+  const [deleteError, setDeleteError]     = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   const confirmed = confirmText.trim().toUpperCase() === "DELETE";
 
   const openModal = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setConfirmText(""); setDeleteError(null); setShowModal(true);
+  }, []);
+
+  const openEditModal = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowEditModal(true);
   }, []);
 
   const closeModal = useCallback(() => {
@@ -166,32 +209,29 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
         borderRadius: "14px",
         overflow: "hidden",
         cursor: "pointer",
-        transition: "transform var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base)",
+        transition: "transform var(--transition-base), border-color var(--transition-base)",
         breakInside: "avoid",
         display: "flex",
         flexDirection: "column",
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLElement;
-        el.style.transform = "translateY(-4px)";
-        el.style.borderColor = "rgba(79, 179, 186, 0.35)";
-        el.style.boxShadow = "0 8px 32px rgba(79, 179, 186, 0.15)";
+        el.style.borderColor = "rgba(79, 179, 186, 0.5)";
         setHovered(true);
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLElement;
-        el.style.transform = "translateY(0)";
         el.style.borderColor = "var(--color-border)";
-        el.style.boxShadow = "none";
         setHovered(false);
       }}
+      onClick={() => setShowViewModal(true)}
     >
       {/* Thumbnail */}
       <div
         style={{
           position: "relative",
           width: "100%",
-          paddingTop: "56.25%",
+          paddingTop: "48%",
           background: "var(--color-surface-2)",
           overflow: "hidden",
         }}
@@ -271,8 +311,53 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
           {platform.label}
         </div>
 
-        {/* Top-right controls: delete button + status dot */}
+        {/* Top-right controls: hero crown + edit + delete buttons + status dot */}
         <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 6 }}>
+
+          {/* Hero crown — always visible when isHero, hover-only otherwise */}
+          {onToggleHero && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleHero(creative.id); }}
+              title={isHero ? "Remove hero" : "Set as hero"}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 28, height: 28,
+                background: isHero ? "rgba(251,191,36,0.9)" : "rgba(0,0,0,0.55)",
+                backdropFilter: "blur(6px)",
+                border: isHero ? "1px solid rgba(251,191,36,0.6)" : "1px solid rgba(255,255,255,0.15)",
+                borderRadius: "7px",
+                cursor: "pointer",
+                opacity: isHero ? 1 : (hovered ? 1 : 0),
+                transform: isHero ? "scale(1)" : (hovered ? "scale(1)" : "scale(0.8)"),
+                transition: "opacity 180ms ease, transform 180ms ease, background 150ms ease",
+                pointerEvents: isHero ? "auto" : (hovered ? "auto" : "none"),
+              }}
+            >
+              <Crown size={12} color={isHero ? "#1a1a1a" : "#fff"} fill={isHero ? "#1a1a1a" : "none"} />
+            </button>
+          )}
+
+          {/* Edit button */}
+          <button
+            onClick={openEditModal}
+            title="Edit creative"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 28,
+              background: "rgba(79,179,186,0.85)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(79,179,186,0.4)",
+              borderRadius: "7px",
+              cursor: "pointer",
+              opacity: hovered ? 1 : 0,
+              transform: hovered ? "scale(1)" : "scale(0.8)",
+              transition: "opacity 180ms ease, transform 180ms ease",
+              pointerEvents: hovered ? "auto" : "none",
+            }}
+          >
+            <Pencil size={12} color="#fff" />
+          </button>
+
           {/* Delete button — reveals on hover */}
           <button
             onClick={openModal}
@@ -300,7 +385,6 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
               width: 8, height: 8,
               borderRadius: "50%",
               background: STATUS_COLORS[creative.status],
-              boxShadow: `0 0 6px ${STATUS_COLORS[creative.status]}`,
               flexShrink: 0,
             }}
           />
@@ -308,18 +392,17 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
       </div>
 
       {/* Content */}
-      <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
+      <div style={{ padding: "10px 12px", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
         {/* Title */}
         <h3
           style={{
-            fontSize: "13px",
+            fontSize: "12px",
             fontWeight: 600,
             color: "var(--color-text-primary)",
-            lineHeight: 1.4,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
+            lineHeight: 1.3,
+            whiteSpace: "nowrap",
             overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
           {creative.title}
@@ -330,31 +413,31 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "8px",
+            gap: "5px",
           }}
         >
           {[
-            { icon: Eye,           value: formatNumber(creative.views),           label: "Views" },
-            { icon: Heart,         value: formatNumber(creative.likes),           label: "Likes" },
+            { icon: Eye,           value: formatNumber(creative.views),              label: "Views" },
+            { icon: Heart,         value: formatNumber(creative.likes),              label: "Likes" },
             { icon: MessageCircle, value: formatEngagement(creative.engagement_rate), label: "Engmt" },
           ].map(({ icon: Icon, value, label }) => (
             <div
               key={label}
               style={{
                 background: "var(--color-surface-2)",
-                borderRadius: "8px",
-                padding: "8px",
+                borderRadius: "6px",
+                padding: "5px 4px",
                 textAlign: "center",
               }}
             >
               <Icon
-                size={12}
+                size={10}
                 color="var(--color-text-muted)"
-                style={{ marginBottom: "3px" }}
+                style={{ marginBottom: "2px" }}
               />
               <p
                 style={{
-                  fontSize: "13px",
+                  fontSize: "11px",
                   fontWeight: 700,
                   color: "var(--color-text-primary)",
                   lineHeight: 1,
@@ -364,11 +447,11 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
               </p>
               <p
                 style={{
-                  fontSize: "9px",
+                  fontSize: "8px",
                   color: "var(--color-text-muted)",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
-                  marginTop: "2px",
+                  marginTop: "1px",
                 }}
               >
                 {label}
@@ -377,49 +460,67 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
           ))}
         </div>
 
-        {/* Footer */}
+        {/* Footer — Brand / Campaign / Date + ad_type */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-end",
             justifyContent: "space-between",
             marginTop: "auto",
+            gap: "6px",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "2px",
-            }}
-          >
+          {/* Left col: brand → campaign → date stacked */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: 0 }}>
+
+            {/* Brand */}
             {creative.brand_name && (
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                 {brandLogoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={brandLogoUrl}
                     alt={creative.brand_name}
-                    style={{ width: 16, height: 16, borderRadius: 3, objectFit: "contain", flexShrink: 0 }}
+                    style={{ width: 13, height: 13, borderRadius: 2, objectFit: "contain", flexShrink: 0 }}
                   />
                 ) : (
                   <div style={{
-                    width: 16, height: 16, borderRadius: 3,
+                    width: 13, height: 13, borderRadius: 2,
                     background: platform.bg,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "8px", fontWeight: 800, color: platform.color, flexShrink: 0,
+                    fontSize: "7px", fontWeight: 800, color: platform.color, flexShrink: 0,
                   }}>
                     {creative.brand_name[0]?.toUpperCase()}
                   </div>
                 )}
-                <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                <span style={{
+                  fontSize: "10px", fontWeight: 600,
+                  color: "var(--color-text-secondary)",
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>
                   {creative.brand_name}
                 </span>
               </div>
             )}
+
+            {/* Campaign */}
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <Layers size={10} color={creative.campaign_name ? "var(--color-accent)" : "var(--color-text-muted)"} style={{ flexShrink: 0 }} />
+              <span style={{
+                fontSize: "10px",
+                fontWeight: creative.campaign_name ? 600 : 400,
+                color: creative.campaign_name ? "var(--color-accent)" : "var(--color-text-muted)",
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                fontStyle: creative.campaign_name ? "normal" : "italic",
+              }}>
+                {creative.campaign_name ?? "No campaign"}
+              </span>
+            </div>
+
+            {/* Date */}
             <div style={{ display: "flex", alignItems: "center", gap: "5px",
-              fontSize: "11px", color: "var(--color-text-muted)" }}>
-              <TrendingUp size={11} />
+              fontSize: "10px", color: "var(--color-text-muted)" }}>
+              <TrendingUp size={10} />
               <span>
                 {creative.published_at
                   ? new Date(creative.published_at).toLocaleDateString("en-US", {
@@ -429,15 +530,18 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
               </span>
             </div>
           </div>
+
+          {/* Right: ad_type pill */}
           <span
             style={{
-              fontSize: "10px",
+              fontSize: "9px",
               fontWeight: 600,
               color: platform.color,
               background: platform.bg,
               borderRadius: "4px",
-              padding: "2px 7px",
+              padding: "2px 6px",
               textTransform: "capitalize",
+              flexShrink: 0,
             }}
           >
             {creative.ad_type}
@@ -446,8 +550,8 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
       </div>
     </article>
 
-    {/* ── Delete confirmation modal ──────────────────────────────────────── */}
-    {showModal && (
+    {/* ── Delete confirmation modal ──────────────────────────────────── */}
+    {showModal && typeof document !== "undefined" && createPortal(
       <div
         role="dialog"
         aria-modal="true"
@@ -574,7 +678,7 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
                 cursor: confirmed && !isDeleting ? "pointer" : "not-allowed",
                 display: "flex", alignItems: "center", gap: 7,
                 transition: "background 200ms",
-                boxShadow: confirmed ? "0 4px 14px rgba(244,63,94,0.35)" : "none",
+                boxShadow: "none",
               }}
             >
               {isDeleting
@@ -583,7 +687,29 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete }: Cr
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
+    )}
+
+    {/* ── Edit creative modal ──────────────────────────────────────────────── */}
+    {showEditModal && (
+      <EditCreativeModal
+        creative={creative}
+        onClose={() => setShowEditModal(false)}
+        onSave={(id, patch) => {
+          setShowEditModal(false);
+          onUpdate?.(id, patch);
+        }}
+      />
+    )}
+
+    {/* ── View modal ────────────────────────────────────────────────── */}
+    {showViewModal && (
+      <CreativeViewModal
+        creative={creative}
+        brandLogoUrl={brandLogoUrl}
+        onClose={() => setShowViewModal(false)}
+      />
     )}
 
     <style>{`

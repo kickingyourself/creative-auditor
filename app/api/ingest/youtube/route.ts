@@ -226,6 +226,7 @@ export async function POST(request: Request): Promise<Response> {
     campaign_id: typeof campaign_id === "string" ? campaign_id : null,
     platform: "youtube" as const,
     source_url: `https://www.youtube.com/watch?v=${videoId}`, // normalize
+    title: snippet.title,
     thumbnail_url: pickThumbnail(snippet.thumbnails),
     view_count: statistics.viewCount ? parseInt(statistics.viewCount, 10) : null,
     engagement_rate: computeEngagementRate(

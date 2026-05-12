@@ -16,6 +16,8 @@ import {
   Copy,
   Check,
 } from "lucide-react";
+import { CampaignPicker } from "@/components/CampaignPicker";
+import type { CampaignOption } from "@/components/CampaignPicker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -208,15 +210,15 @@ interface YouTubeIngestFormProps {
 
 export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps) {
   // Single video state
-  const [videoUrl, setVideoUrl] = useState("");
-  const [singleCampaignId, setSingleCampaignId] = useState("");
-  const [singleResult, setSingleResult] = useState<SingleResult>(null);
-  const [singlePending, startSingleTransition] = useTransition();
+  const [videoUrl, setVideoUrl]                 = useState("");
+  const [singleCampaign, setSingleCampaign]     = useState<CampaignOption | null>(null);
+  const [singleResult, setSingleResult]         = useState<SingleResult>(null);
+  const [singlePending, startSingleTransition]  = useTransition();
 
   // Channel sync state
-  const [channelUrl, setChannelUrl] = useState("");
-  const [channelCampaignId, setChannelCampaignId] = useState("");
-  const [channelResult, setChannelResult] = useState<ChannelResult>(null);
+  const [channelUrl, setChannelUrl]             = useState("");
+  const [channelCampaign, setChannelCampaign]   = useState<CampaignOption | null>(null);
+  const [channelResult, setChannelResult]       = useState<ChannelResult>(null);
   const [channelPending, startChannelTransition] = useTransition();
 
   // Copy-to-clipboard state
@@ -241,14 +243,14 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
           body: JSON.stringify({
             url: videoUrl.trim(),
             brand_id: brandId,
-            campaign_id: singleCampaignId.trim() || null,
+            campaign_id: singleCampaign?.id ?? null,
           }),
         });
         const json = await res.json();
         if (res.ok) {
           setSingleResult({ status: "success", ...json });
           setVideoUrl("");
-          setSingleCampaignId("");
+          setSingleCampaign(null);
         } else {
           setSingleResult({ status: "error", ...json });
         }
@@ -275,15 +277,15 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
           body: JSON.stringify({
             channel_url: channelUrl.trim(),
             brand_id: brandId,
-            campaign_id: channelCampaignId.trim() || null,
-            max_results: 5,
+            campaign_id: channelCampaign?.id ?? null,
+            max_results: 15,
           }),
         });
         const json = await res.json();
         if (res.ok) {
           setChannelResult({ status: "success", ...json });
           setChannelUrl("");
-          setChannelCampaignId("");
+          setChannelCampaign(null);
         } else {
           setChannelResult({ status: "error", ...json });
         }
@@ -359,26 +361,13 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
 
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <FieldLabel htmlFor={`yt-scampaign-${brandId}`}>
-            Campaign ID <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
+            Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
           </FieldLabel>
-          <input
-            id={`yt-scampaign-${brandId}`}
-            type="text"
-            value={singleCampaignId}
-            onChange={(e) => setSingleCampaignId(e.target.value)}
-            placeholder="UUID of an existing campaign"
+          <CampaignPicker
+            brandId={brandId}
+            instanceId={`yt-single-${brandId}`}
             disabled={anyPending}
-            autoComplete="off"
-            style={{
-              background: "var(--color-surface-2)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              color: "var(--color-text-primary)",
-              fontSize: "13px",
-              outline: "none",
-              opacity: anyPending ? 0.5 : 1,
-            }}
+            onChange={setSingleCampaign}
           />
         </div>
 
@@ -393,8 +382,7 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
             color: "#fff", fontSize: "13px", fontWeight: 600,
             cursor: anyPending || !videoUrl.trim() ? "not-allowed" : "pointer",
             opacity: anyPending || !videoUrl.trim() ? 0.6 : 1,
-            transition: "opacity 200ms, transform 150ms",
-            boxShadow: anyPending || !videoUrl.trim() ? "none" : "0 4px 12px rgba(255,68,68,0.25)",
+            transition: "opacity 200ms",
           }}
         >
           {singlePending ? (
@@ -489,26 +477,13 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
 
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <FieldLabel htmlFor={`yt-ch-campaign-${brandId}`}>
-            Campaign ID <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
+            Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
           </FieldLabel>
-          <input
-            id={`yt-ch-campaign-${brandId}`}
-            type="text"
-            value={channelCampaignId}
-            onChange={(e) => setChannelCampaignId(e.target.value)}
-            placeholder="UUID of an existing campaign"
+          <CampaignPicker
+            brandId={brandId}
+            instanceId={`yt-channel-${brandId}`}
             disabled={anyPending}
-            autoComplete="off"
-            style={{
-              background: "var(--color-surface-2)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              color: "var(--color-text-primary)",
-              fontSize: "13px",
-              outline: "none",
-              opacity: anyPending ? 0.5 : 1,
-            }}
+            onChange={setChannelCampaign}
           />
         </div>
 
@@ -523,8 +498,7 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
             color: "#fff", fontSize: "13px", fontWeight: 600,
             cursor: anyPending || !channelUrl.trim() ? "not-allowed" : "pointer",
             opacity: anyPending || !channelUrl.trim() ? 0.6 : 1,
-            transition: "opacity 200ms, transform 150ms",
-            boxShadow: anyPending || !channelUrl.trim() ? "none" : "0 4px 12px rgba(124,58,237,0.3)",
+            transition: "opacity 200ms",
           }}
         >
           {channelPending ? (

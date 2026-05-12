@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { scrapeHomepage, ScrapeState } from "@/actions/scrape-homepage";
 import {
   Globe,
@@ -10,6 +10,8 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react";
+import { CampaignPicker } from "@/components/CampaignPicker";
+import type { CampaignOption } from "@/components/CampaignPicker";
 
 const initialState: ScrapeState = { status: "idle" };
 
@@ -24,6 +26,7 @@ export function ScrapeForm({ brandId, brandName }: ScrapeFormProps) {
     scrapeHomepage,
     initialState
   );
+  const [campaign, setCampaign] = useState<CampaignOption | null>(null);
 
   return (
     <div
@@ -134,10 +137,9 @@ export function ScrapeForm({ brandId, brandName }: ScrapeFormProps) {
           </div>
         </div>
 
-        {/* Optional campaign_id */}
+        {/* Optional campaign — resolved to UUID via picker */}
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label
-            htmlFor={`scrape-campaign-${brandId}`}
             style={{
               fontSize: "12px",
               fontWeight: 600,
@@ -146,28 +148,18 @@ export function ScrapeForm({ brandId, brandName }: ScrapeFormProps) {
               letterSpacing: "0.06em",
             }}
           >
-            Campaign ID{" "}
+            Campaign{" "}
             <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>
               (optional)
             </span>
           </label>
-          <input
-            id={`scrape-campaign-${brandId}`}
-            name="campaign_id"
-            type="text"
-            autoComplete="off"
-            placeholder="UUID of an existing campaign"
+          {/* Hidden input carries the resolved UUID to the server action */}
+          <input type="hidden" name="campaign_id" value={campaign?.id ?? ""} />
+          <CampaignPicker
+            brandId={brandId}
+            instanceId={`scrape-${brandId}`}
             disabled={pending}
-            style={{
-              background: "var(--color-surface-2)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              color: "var(--color-text-primary)",
-              fontSize: "13px",
-              outline: "none",
-              opacity: pending ? 0.5 : 1,
-            }}
+            onChange={setCampaign}
           />
         </div>
 
@@ -191,22 +183,11 @@ export function ScrapeForm({ brandId, brandName }: ScrapeFormProps) {
             fontSize: "13px",
             fontWeight: 600,
             cursor: pending ? "not-allowed" : "pointer",
-            transition: "opacity 200ms ease, transform 150ms ease",
+            transition: "opacity 200ms ease",
             opacity: pending ? 0.7 : 1,
-            boxShadow: pending ? "none" : "0 4px 12px rgba(34,211,160,0.25)",
           }}
-          onMouseEnter={(e) => {
-            if (!pending) {
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
-              (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                "0 6px 20px rgba(34,211,160,0.35)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow =
-              "0 4px 12px rgba(34,211,160,0.25)";
-          }}
+          onMouseEnter={undefined}
+          onMouseLeave={undefined}
         >
           {pending ? (
             <>

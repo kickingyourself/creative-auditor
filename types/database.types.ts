@@ -14,8 +14,16 @@
 // Enum
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Maps to the `platform_type` Postgres enum. */
-export type PlatformType = 'youtube' | 'tiktok' | 'homepage' | 'social';
+/** Maps to the `platform_type` Postgres enum.
+ *  'homepage' = legacy value still in DB; app layer normalises to 'landing_page' on read.
+ *  Run this in Supabase SQL editor to enable all platform types:
+ *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'landing_page';
+ *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'programmatic';
+ *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'ooh';
+ *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'tvc';
+ */
+export type PlatformType = 'youtube' | 'tiktok' | 'landing_page' | 'homepage' | 'social' | 'pinterest' | 'programmatic' | 'ooh' | 'tvc';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Row types  (what Supabase returns from SELECT)
@@ -45,6 +53,8 @@ export interface CampaignRow {
   start_date: string | null;
   /** Inclusive end date in YYYY-MM-DD format. Nullable if ongoing. */
   end_date: string | null;
+  /** FK → creatives.id. The pinned hero creative for the campaign dashboard. Nullable. */
+  hero_creative_id: string | null;
   /** ISO-8601 timestamp of record creation (with timezone). */
   created_at: string;
 }
@@ -63,6 +73,11 @@ export interface CreativeRow {
   platform: PlatformType;
   /** Canonical URL of the ad unit (YouTube watch URL, TikTok share URL, etc.). */
   source_url: string;
+  /**
+   * Optional user-provided title. NULL = auto-derive from source_url + platform.
+   * Added in migration 003_add_title_to_creatives.sql.
+   */
+  title: string | null;
   /**
    * Cached thumbnail URL from the creative-assets Supabase Storage bucket.
    * Nullable until the thumbnail has been fetched and cached.
@@ -116,6 +131,7 @@ export interface CreativeInsert {
   campaign_id?: string | null;
   platform: PlatformType;
   source_url: string;
+  title?: string | null;
   thumbnail_url?: string | null;
   view_count?: number | null;
   engagement_rate?: number | null;
@@ -132,9 +148,21 @@ export type CampaignUpdate = Partial<
   Omit<CampaignInsert, 'id' | 'brand_id' | 'created_at'>
 >;
 
-export type CreativeUpdate = Partial<
-  Omit<CreativeInsert, 'id' | 'brand_id' | 'created_at'>
->;
+/**
+ * All fields that may be patched on a creative.
+ * brand_id, title, created_at, and campaign_id are exposed for the edit UI.
+ */
+export interface CreativeUpdate {
+  brand_id?: string;
+  campaign_id?: string | null;
+  platform?: PlatformType;
+  source_url?: string;
+  title?: string | null;
+  thumbnail_url?: string | null;
+  view_count?: number | null;
+  engagement_rate?: number | null;
+  created_at?: string;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Supabase Database generic type

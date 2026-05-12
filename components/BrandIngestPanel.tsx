@@ -6,6 +6,7 @@ import { ScrapeForm } from "@/components/ScrapeForm";
 import { YouTubeIngestForm } from "@/components/YouTubeIngestForm";
 import { FacebookIngestForm } from "@/components/FacebookIngestForm";
 import { InstagramIngestForm } from "@/components/InstagramIngestForm";
+import { PinterestIngestForm } from "@/components/PinterestIngestForm";
 
 // ─── Brand SVG icons (lucide-react doesn't ship Facebook/Instagram) ───────────
 function FbIcon({ size = 13 }: { size?: number }) {
@@ -23,7 +24,7 @@ function IgIcon({ size = 13 }: { size?: number }) {
   );
 }
 
-type Platform = "homepage" | "youtube" | "facebook" | "instagram";
+type Platform = "landing_page" | "youtube" | "facebook" | "instagram" | "pinterest";
 
 interface Tab {
   id: Platform;
@@ -36,8 +37,8 @@ interface Tab {
 
 const TABS: Tab[] = [
   {
-    id: "homepage",
-    label: "Homepage",
+    id: "landing_page",
+    label: "Landing Page",
     icon: <Globe size={13} />,
     color: "var(--color-text-secondary)",
     activeColor: "#22d3a0",
@@ -67,6 +68,18 @@ const TABS: Tab[] = [
     activeColor: "#e1306c",
     activeBg: "rgba(225,48,108,0.10)",
   },
+  {
+    id: "pinterest",
+    label: "Pinterest",
+    icon: (
+      <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
+      </svg>
+    ),
+    color: "var(--color-text-secondary)",
+    activeColor: "#e60023",
+    activeBg: "rgba(230,0,35,0.10)",
+  },
 ];
 
 interface BrandIngestPanelProps {
@@ -75,7 +88,7 @@ interface BrandIngestPanelProps {
 }
 
 export function BrandIngestPanel({ brandId, brandName }: BrandIngestPanelProps) {
-  const [active, setActive] = useState<Platform>("homepage");
+  const [active, setActive] = useState<Platform>("landing_page");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -133,10 +146,11 @@ export function BrandIngestPanel({ brandId, brandName }: BrandIngestPanelProps) 
         key={`${brandId}-${active}`}
         style={{ animation: "fadeInUp 0.2s ease both" }}
       >
-        {active === "homepage" && <ScrapeForm brandId={brandId} brandName={brandName} />}
-        {active === "youtube" && <YouTubeIngestForm brandId={brandId} brandName={brandName} />}
-        {active === "facebook" && <FacebookIngestForm brandId={brandId} brandName={brandName} />}
+        {active === "landing_page" && <ScrapeForm brandId={brandId} brandName={brandName} />}
+        {active === "youtube"   && <YouTubeIngestForm brandId={brandId} brandName={brandName} />}
+        {active === "facebook"  && <FacebookIngestForm brandId={brandId} brandName={brandName} />}
         {active === "instagram" && <InstagramIngestForm brandId={brandId} brandName={brandName} />}
+        {active === "pinterest" && <PinterestIngestForm brandId={brandId} brandName={brandName} />}
       </div>
 
       <style>{`

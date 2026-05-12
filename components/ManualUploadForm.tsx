@@ -440,7 +440,7 @@ export function ManualUploadForm() {
     { value: "social", label: "Social / Meta" },
     { value: "youtube", label: "YouTube" },
     { value: "tiktok", label: "TikTok" },
-    { value: "homepage", label: "Display / Other" },
+    { value: "landing_page", label: "Landing Page" },
   ];
 
   return (
@@ -565,7 +565,6 @@ export function ManualUploadForm() {
             color: "#fff", fontSize: 14, fontWeight: 700,
             cursor: canSubmit ? "pointer" : "not-allowed",
             opacity: canSubmit ? 1 : 0.55,
-            boxShadow: canSubmit ? "0 4px 16px rgba(79,179,186,0.35)" : "none",
             transition: "all 200ms",
           }}>
           {pending

@@ -15,6 +15,8 @@ import {
   LayoutGrid,
   Info,
 } from "lucide-react";
+import { CampaignPicker } from "@/components/CampaignPicker";
+import type { CampaignOption } from "@/components/CampaignPicker";
 
 // Instagram brand icon (not in this version of lucide-react)
 function IgIcon({ size = 14, color }: { size?: number; color?: string }) {
@@ -192,7 +194,7 @@ const IG_BG = "rgba(225,48,108,0.09)";
 
 export function InstagramIngestForm({ brandId, brandName }: InstagramIngestFormProps) {
   const [postUrl, setPostUrl] = useState("");
-  const [campaignId, setCampaignId] = useState("");
+  const [campaign, setCampaign] = useState<CampaignOption | null>(null);
   const [igUserId, setIgUserId] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [result, setResult] = useState<IngestResult>(null);
@@ -209,7 +211,7 @@ export function InstagramIngestForm({ brandId, brandName }: InstagramIngestFormP
           body: JSON.stringify({
             url: postUrl.trim(),
             brand_id: brandId,
-            campaign_id: campaignId.trim() || null,
+            campaign_id: campaign?.id ?? null,
             ig_user_id: igUserId.trim() || null,
           }),
         });
@@ -217,7 +219,7 @@ export function InstagramIngestForm({ brandId, brandName }: InstagramIngestFormP
         if (res.ok) {
           setResult({ status: "success", ...json });
           setPostUrl("");
-          setCampaignId("");
+          setCampaign(null);
         } else {
           setResult({ status: "error", ...json });
         }
@@ -315,30 +317,17 @@ export function InstagramIngestForm({ brandId, brandName }: InstagramIngestFormP
           </p>
         </div>
 
-        {/* Campaign ID */}
+        {/* Campaign */}
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <FieldLabel htmlFor={`ig-campaign-${brandId}`}>
-            Campaign ID{" "}
+            Campaign{" "}
             <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
           </FieldLabel>
-          <input
-            id={`ig-campaign-${brandId}`}
-            type="text"
-            value={campaignId}
-            onChange={(e) => setCampaignId(e.target.value)}
-            placeholder="UUID of an existing campaign"
+          <CampaignPicker
+            brandId={brandId}
+            instanceId={`ig-${brandId}`}
             disabled={disabled}
-            autoComplete="off"
-            style={{
-              background: "var(--color-surface-2)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              color: "var(--color-text-primary)",
-              fontSize: "13px",
-              outline: "none",
-              opacity: disabled ? 0.5 : 1,
-            }}
+            onChange={setCampaign}
           />
         </div>
 

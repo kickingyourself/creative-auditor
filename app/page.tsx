@@ -13,6 +13,8 @@ import { Creative } from "@/types";
 import { CreativeGrid } from "@/components/CreativeGrid";
 import { StatCards } from "@/components/StatCards";
 import type { StatCardsData } from "@/components/StatCards";
+import { CampaignSummaryGrid } from "@/components/CampaignSummaryGrid";
+import type { CampaignSummary } from "@/components/CampaignSummaryGrid";
 
 export const metadata: Metadata = {
   title: "Dashboard — Creative Audit",
@@ -27,53 +29,61 @@ export const revalidate = 60;
 interface CreativeRow {
   id: string;
   brand_id: string;
+  campaign_id: string | null;
   platform: string;
   source_url: string;
+  title: string | null;
   thumbnail_url: string | null;
   view_count: number | null;
   engagement_rate: number | null;
   created_at: string;
   brands: { name: string; logo_url: string | null } | null;
+  campaigns: { name: string } | null;
 }
 
 // ─── Mapper: DB row → Creative card interface ─────────────────────────────────
 
 function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: string | null } {
-  const platform = row.platform as Creative["platform"];
-  const brandName = row.brands?.name ?? null;
+  // Normalise legacy 'homepage' rows (pre-migration) to 'landing_page'
+  const rawPlatform  = row.platform === "homepage" ? "landing_page" : row.platform;
+  const platform     = rawPlatform as Creative["platform"];
+  const brandName    = row.brands?.name ?? null;
   const brandLogoUrl = row.brands?.logo_url ?? null;
 
-  // Derive a human-readable title from context
-  let title = row.source_url;
+  // Use the user-set title from DB if present, otherwise derive from URL
+  let derivedTitle = row.source_url;
   try {
     const url = new URL(row.source_url);
-    if (row.platform === "youtube") {
+    if (rawPlatform === "youtube") {
       const videoId = url.searchParams.get("v") ?? url.pathname.split("/").pop();
-      title = `${brandName ?? "YouTube"} · ${videoId}`;
-    } else if (row.platform === "homepage") {
-      title = `${brandName ?? url.hostname} — Homepage`;
-    } else if (row.platform === "tiktok") {
-      title = `${brandName ?? "TikTok"} · ${url.pathname.split("/").pop()}`;
+      derivedTitle = `${brandName ?? "YouTube"} · ${videoId}`;
+    } else if (rawPlatform === "landing_page") {
+      derivedTitle = `${brandName ?? url.hostname} — Landing Page`;
+    } else if (rawPlatform === "tiktok") {
+      derivedTitle = `${brandName ?? "TikTok"} · ${url.pathname.split("/").pop()}`;
     } else {
-      title = url.hostname.replace(/^www\./, "");
+      derivedTitle = url.hostname.replace(/^www\./, "");
     }
   } catch {
-    /* keep source_url as title */
+    /* keep source_url as derivedTitle */
   }
+  const title = row.title ?? derivedTitle;
 
   const adType: Creative["ad_type"] =
-    row.platform === "homepage" ? "image" : "video";
+    rawPlatform === "landing_page" || rawPlatform === "pinterest" ? "image" : "video";
 
   return {
     creative: {
       id:              row.id,
       brand_id:        row.brand_id,
+      campaign_id:     row.campaign_id,
+      campaign_name:   row.campaigns?.name ?? null,
       brand_name:      brandName,
       title,
       platform,
       source_url:      row.source_url,
       thumbnail_url:   row.thumbnail_url,
-      video_url:       row.platform === "youtube" ? row.source_url : null,
+      video_url:       rawPlatform === "youtube" ? row.source_url : null,
       views:           row.view_count,
       likes:           null,
       comments:        null,
@@ -99,6 +109,7 @@ export default async function DashboardPage() {
     totalViews: 0,
     topPlatform: "—",
   };
+  let summaries: CampaignSummary[] = [];
   let dbError = false;
 
   try {
@@ -107,7 +118,7 @@ export default async function DashboardPage() {
     // ── Fetch latest 20 creatives with brand name joined ──────────────────────
     const { data: rows, error: rowsErr } = await supabase
       .from("creatives")
-      .select("id, brand_id, platform, source_url, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url)")
+      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns(name)")
       .order("created_at", { ascending: false })
       .limit(20);
 
@@ -144,6 +155,58 @@ export default async function DashboardPage() {
       totalViews,
       topPlatform,
     };
+
+    // ── Brand+Campaign summary ─────────────────────────────────────────────
+    // Fetch all creatives with brand + campaign info (no limit) for grouping.
+    const { data: allRows } = await supabase
+      .from("creatives")
+      .select("brand_id, campaign_id, platform, thumbnail_url, brands(name, logo_url), campaigns(name)")
+      .order("created_at", { ascending: false });
+
+    if (allRows) {
+      // Group by brand_id + campaign_id (null = uncategorised)
+      const groupMap = new Map<string, CampaignSummary>();
+
+      for (const row of allRows as {
+        brand_id: string;
+        campaign_id: string | null;
+        platform: string;
+        thumbnail_url: string | null;
+        brands: { name: string; logo_url: string | null } | null;
+        campaigns: { name: string } | null;
+      }[]) {
+        const key = `${row.brand_id}::${row.campaign_id ?? "__none__"}`;
+
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            brand_id:      row.brand_id,
+            brand_name:    row.brands?.name ?? "Unknown Brand",
+            brand_logo_url: row.brands?.logo_url ?? null,
+            campaign_id:   row.campaign_id,
+            campaign_name: row.campaigns?.name ?? null,
+            creative_count: 0,
+            thumbnails: [],
+            platforms: [],
+          });
+        }
+
+        const group = groupMap.get(key)!;
+        group.creative_count++;
+        if (group.thumbnails.length < 4 && row.thumbnail_url) {
+          group.thumbnails.push(row.thumbnail_url);
+        }
+        if (!group.platforms.includes(row.platform)) {
+          group.platforms.push(row.platform);
+        }
+      }
+
+      // Sort: named campaigns first, then uncategorised; alphabetically within each
+      summaries = Array.from(groupMap.values()).sort((a, b) => {
+        if (!!a.campaign_id !== !!b.campaign_id) return a.campaign_id ? -1 : 1;
+        return (a.brand_name + (a.campaign_name ?? "")).localeCompare(
+                b.brand_name + (b.campaign_name ?? ""));
+      });
+    }
   } catch {
     dbError = true;
   }
@@ -181,6 +244,9 @@ export default async function DashboardPage() {
 
       {/* Live stat cards */}
       <StatCards data={statsData} />
+
+      {/* Brand + Campaign overview */}
+      <CampaignSummaryGrid summaries={summaries} />
 
       {/* Section header */}
       <div style={{

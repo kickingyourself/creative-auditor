@@ -44,3 +44,5 @@ next-env.d.ts
 public/fonts/*.otf
 public/fonts/*.woff
 public/fonts/*.woff2
+# Exception: licensed fonts explicitly included for deployment
+!public/fonts/PPRightGrotesk-WideBold.otf

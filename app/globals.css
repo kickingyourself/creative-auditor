@@ -14,10 +14,10 @@
 /* ─── PMG-inspired design tokens ─────────────────────────────────────────── */
 
 :root {
-  /* Backgrounds: warm charcoal (PMG's signature near-black) */
-  --color-bg:        #161614;
-  --color-surface:   #1e1e1c;
-  --color-surface-2: #272724;
+  /* Backgrounds: PMG black */
+  --color-bg:        #211f17;
+  --color-surface:   #292720;
+  --color-surface-2: #322f26;
   --color-border:    rgba(255, 255, 255, 0.07);
 
   /* Accent: PMG teal */
@@ -36,13 +36,26 @@
   --color-error:   #c85a4a;
 
   /* Layout */
-  --sidebar-width:  240px;
-  --header-height:  64px;
+  --sidebar-width:           240px;
+  --sidebar-width-collapsed: 64px;
+  --header-height:           64px;
 
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-base: 250ms ease;
   --transition-slow: 400ms ease;
+}
+
+/* Collapsed desktop sidebar */
+[data-sidebar-collapsed="true"] {
+  --sidebar-width: var(--sidebar-width-collapsed);
+}
+
+/* Mobile: sidebar is an off-canvas drawer — main content fills full width */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+  }
 }
 
 /* Light mode (warm inversion) */
@@ -118,11 +131,6 @@ h1, h2, h3, h4, h5, h6 {
   background-clip: text;
 }
 
-/* ─── Glow ───────────────────────────────────────────────────────────────── */
-
-.glow-accent {
-  box-shadow: 0 0 20px var(--color-accent-glow);
-}
 
 /* ─── Brand gradient — sidebar logo & avatar ─────────────────────────────── */
 
