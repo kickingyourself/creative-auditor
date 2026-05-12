@@ -162,7 +162,12 @@ export async function PATCH(
   if (title       !== undefined) patch.title       = title;
   if (created_at  !== undefined) patch.created_at  = created_at;
   if (campaign_id !== undefined) patch.campaign_id = campaign_id;
-  if (platform    !== undefined) (patch as Record<string, unknown>).platform = platform;
+  if (platform !== undefined) {
+    // DB enum uses 'homepage'; app layer normalises to 'landing_page' on read.
+    // Until ALTER TYPE platform_type ADD VALUE 'landing_page' is run, map it here.
+    const dbPlatform = platform === "landing_page" ? "homepage" : platform;
+    (patch as Record<string, unknown>).platform = dbPlatform;
+  }
 
   // If brand_id changes, clear campaign_id to avoid cross-brand trigger violation
   const currentBrandId = (existing as { id: string; brand_id: string }).brand_id;
