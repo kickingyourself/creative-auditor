@@ -4,6 +4,7 @@
  */
 
 import type { Metadata } from "next";
+import { createServerClient } from "@/utils/supabase/server";
 import { ComparisonBuilder, type CampaignOption } from "@/components/ComparisonBuilder";
 
 export const metadata: Metadata = {
@@ -11,18 +12,18 @@ export const metadata: Metadata = {
   description: "Build a side-by-side competitive ad creative comparison.",
 };
 
-async function getAllCampaigns(): Promise<CampaignOption[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/campaigns/all`, { cache: "no-store" });
-    if (!res.ok) return [];
-    const json = await res.json() as { campaigns: CampaignOption[] };
-    return json.campaigns;
-  } catch { return []; }
-}
-
 export default async function NewComparisonPage() {
-  const allCampaigns = await getAllCampaigns();
+  const supabase = await createServerClient();
+  const { data } = await supabase
+    .from("campaigns")
+    .select("id, name, brand_id, brands(id, name, logo_url)")
+    .order("name", { ascending: true });
+
+  const allCampaigns = ((data ?? []) as unknown as CampaignOption[]).sort((a, b) => {
+    const ba = a.brands?.name ?? "";
+    const bb = b.brands?.name ?? "";
+    return ba.localeCompare(bb) || a.name.localeCompare(b.name);
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>

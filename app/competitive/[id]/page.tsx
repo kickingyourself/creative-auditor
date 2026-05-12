@@ -10,14 +10,17 @@ import { ComparisonBuilder, type CampaignOption } from "@/components/ComparisonB
 
 export const revalidate = 0;
 
-async function getAllCampaigns(): Promise<CampaignOption[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/campaigns/all`, { cache: "no-store" });
-    if (!res.ok) return [];
-    const json = await res.json() as { campaigns: CampaignOption[] };
-    return json.campaigns;
-  } catch { return []; }
+async function getAllCampaigns(supabase: Awaited<ReturnType<typeof createServerClient>>) {
+  const { data } = await supabase
+    .from("campaigns")
+    .select("id, name, brand_id, brands(id, name, logo_url)")
+    .order("name", { ascending: true });
+
+  return ((data ?? []) as unknown as CampaignOption[]).sort((a, b) => {
+    const ba = a.brands?.name ?? "";
+    const bb = b.brands?.name ?? "";
+    return ba.localeCompare(bb) || a.name.localeCompare(b.name);
+  });
 }
 
 export async function generateMetadata(
@@ -47,7 +50,7 @@ export default async function SnapshotPage(
 
   if (error || !snapshot) return notFound();
 
-  const allCampaigns = await getAllCampaigns();
+  const allCampaigns = await getAllCampaigns(supabase);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
