@@ -77,9 +77,12 @@ function mimeToAdType(mime: string): "video" | "image" {
   return mime.startsWith("video/") ? "video" : "image";
 }
 
-/** Derive platform enum value (validated). */
-function parsePlatform(raw: string | null): "social" | "youtube" | "tiktok" | "landing_page" {
-  const allowed = ["social", "youtube", "tiktok", "landing_page"] as const;
+/** Derive platform enum value for DB insertion.
+ *  The DB enum uses 'homepage'; the app layer normalises it to 'landing_page' on read.
+ */
+function parsePlatform(raw: string | null): "social" | "youtube" | "tiktok" | "homepage" {
+  if (raw === "landing_page" || raw === "homepage") return "homepage";
+  const allowed = ["social", "youtube", "tiktok"] as const;
   return allowed.includes(raw as typeof allowed[number])
     ? (raw as typeof allowed[number])
     : "social";

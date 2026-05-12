@@ -76,6 +76,7 @@ export function ComparisonBuilder({ allCampaigns, initialCampaignIds, snapshotId
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState(snapshotName ?? "");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Group campaigns by brand for the dropdown optgroups
   const brandGroups = (() => {
@@ -155,25 +156,25 @@ export function ComparisonBuilder({ allCampaigns, initialCampaignIds, snapshotId
     const ids = columns.filter(Boolean) as string[];
     if (!ids.length || !saveName.trim()) return;
     setSaving(true);
+    setSaveError(null);
     try {
-      if (snapshotId) {
-        await fetch(`/api/competitive-snapshots/${snapshotId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: saveName.trim(), campaign_ids: ids }),
-        });
-      } else {
-        await fetch("/api/competitive-snapshots", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: saveName.trim(), campaign_ids: ids }),
-        });
+      const url = snapshotId
+        ? `/api/competitive-snapshots/${snapshotId}`
+        : "/api/competitive-snapshots";
+      const res = await fetch(url, {
+        method: snapshotId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: saveName.trim(), campaign_ids: ids }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(body?.error?.message ?? `Save failed (HTTP ${res.status})`);
       }
-      router.push("/competitive");
-      router.refresh();
-    } finally {
+      // Hard navigate — bypasses Next.js router cache so page re-fetches from DB
+      window.location.href = "/competitive";
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
       setSaving(false);
-      setSaveOpen(false);
     }
   }
 
@@ -420,9 +421,21 @@ export function ComparisonBuilder({ allCampaigns, initialCampaignIds, snapshotId
               />
             </div>
 
+
+            {saveError && (
+              <div style={{
+                padding: "10px 12px", borderRadius: 8,
+                background: "rgba(244,63,94,0.08)",
+                border: "1px solid rgba(244,63,94,0.25)",
+              }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "#f43f5e", marginBottom: 2 }}>Save failed</p>
+                <p style={{ fontSize: 11, color: "var(--color-text-muted)", fontFamily: "monospace", wordBreak: "break-all" }}>{saveError}</p>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button
-                onClick={() => setSaveOpen(false)}
+                onClick={() => { setSaveOpen(false); setSaveError(null); }}
                 disabled={saving}
                 style={{
                   padding: "9px 18px", borderRadius: 8,

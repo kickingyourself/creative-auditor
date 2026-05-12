@@ -14,8 +14,12 @@
 // Enum
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Maps to the `platform_type` Postgres enum. */
-export type PlatformType = 'youtube' | 'tiktok' | 'landing_page' | 'social' | 'pinterest';
+/** Maps to the `platform_type` Postgres enum.
+ *  'homepage' = legacy value still in DB; app layer normalises to 'landing_page' on read.
+ *  Run: ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'landing_page';
+ *       to fully migrate, then remove 'homepage' from this union.
+ */
+export type PlatformType = 'youtube' | 'tiktok' | 'landing_page' | 'homepage' | 'social' | 'pinterest';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
