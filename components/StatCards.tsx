@@ -1,12 +1,13 @@
 "use client";
 
-import { Film, Eye, Building2, TrendingUp } from "lucide-react";
+import { Film, Clock, Building2, TrendingUp, Database } from "lucide-react";
 
 export interface StatCardsData {
   totalCreatives: number;
   totalBrands: number;
-  totalViews: number;
+  latestUploadAt: string | null;   // ISO timestamp of the most recently ingested creative
   topPlatform: string;
+  dbSizeMb: number;                // Total storage used in MB
 }
 
 function fmt(n: number): string {
@@ -15,10 +16,41 @@ function fmt(n: number): string {
   return n.toLocaleString();
 }
 
-/** Blinking cursor character to sell the "live terminal" look */
+function fmtMb(mb: number): string {
+  if (mb >= 1024) return `${(mb / 1024).toFixed(2)} GB`;
+  return `${mb.toFixed(1)} MB`;
+}
+
+/** Relative time: "2h ago", "just now", "3d ago" */
+function relativeTime(iso: string | null): string {
+  if (!iso) return "—";
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60)          return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60)          return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)          return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+/** Short absolute timestamp: "13 May 00:04" */
+function shortTs(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric", month: "short",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+}
+
+/** Blinking cursor to sell the live-terminal feel */
 function Cursor() {
   return (
-    <span style={{ animation: "blink 1.1s step-end infinite", opacity: 1, color: "var(--color-accent)" }}>
+    <span
+      aria-hidden
+      style={{ animation: "blink 1.1s step-end infinite", color: "var(--color-accent)" }}
+    >
       ▮
     </span>
   );
@@ -27,40 +59,49 @@ function Cursor() {
 export function StatCards({ data }: { data: StatCardsData }) {
   const stats = [
     {
-      id:    "stat-total-creatives",
-      label: "CREATIVES",
-      value: fmt(data.totalCreatives),
-      icon:  Film,
-      color: "#4fb3ba",
-      delta: "+2.4%",
-      up:    true,
+      id:      "stat-total-creatives",
+      label:   "CREATIVES",
+      value:   fmt(data.totalCreatives),
+      sub:     null,
+      icon:    Film,
+      color:   "#4fb3ba",
+      cursor:  false,
     },
     {
-      id:    "stat-total-brands",
-      label: "BRANDS",
-      value: fmt(data.totalBrands),
-      icon:  Building2,
-      color: "#38bdf8",
-      delta: "+0.8%",
-      up:    true,
+      id:      "stat-total-brands",
+      label:   "BRANDS",
+      value:   fmt(data.totalBrands),
+      sub:     null,
+      icon:    Building2,
+      color:   "#38bdf8",
+      cursor:  false,
     },
     {
-      id:    "stat-total-views",
-      label: "TOTAL VIEWS",
-      value: fmt(data.totalViews),
-      icon:  Eye,
-      color: "#22d3a0",
-      delta: "+5.1%",
-      up:    true,
+      id:      "stat-latest-upload",
+      label:   "LATEST UPLOAD",
+      value:   relativeTime(data.latestUploadAt),
+      sub:     shortTs(data.latestUploadAt),
+      icon:    Clock,
+      color:   "#22d3a0",
+      cursor:  true,
     },
     {
-      id:    "stat-top-platform",
-      label: "TOP PLATFORM",
-      value: data.topPlatform || "—",
-      icon:  TrendingUp,
-      color: "#f59e0b",
-      delta: "LEAD",
-      up:    true,
+      id:      "stat-top-platform",
+      label:   "TOP PLATFORM",
+      value:   data.topPlatform || "—",
+      sub:     null,
+      icon:    TrendingUp,
+      color:   "#f59e0b",
+      cursor:  false,
+    },
+    {
+      id:      "stat-db-size",
+      label:   "DB STORAGE",
+      value:   fmtMb(data.dbSizeMb),
+      sub:     null,
+      icon:    Database,
+      color:   "#a78bfa",
+      cursor:  false,
     },
   ];
 
@@ -92,19 +133,14 @@ export function StatCards({ data }: { data: StatCardsData }) {
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
-              gap: "5px",
+              gap: "4px",
               padding: "10px 16px",
               borderRight: i < stats.length - 1 ? "1px solid var(--color-border)" : "none",
-              /* Subtle left accent bar via box-shadow */
               boxShadow: `inset 3px 0 0 ${stat.color}`,
             }}
           >
             {/* Label row */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-            }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               <Icon size={9} color={stat.color} style={{ flexShrink: 0 }} />
               <span style={{
                 fontSize: "9px",
@@ -116,12 +152,8 @@ export function StatCards({ data }: { data: StatCardsData }) {
               </span>
             </div>
 
-            {/* Value + delta on one line */}
-            <div style={{
-              display: "flex",
-              alignItems: "baseline",
-              gap: "8px",
-            }}>
+            {/* Value row */}
+            <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
               <span style={{
                 fontSize: "17px",
                 fontWeight: 700,
@@ -132,20 +164,20 @@ export function StatCards({ data }: { data: StatCardsData }) {
               }}>
                 {stat.value}
               </span>
+              {stat.cursor && <Cursor />}
+            </div>
 
+            {/* Sub-label (e.g. absolute timestamp under relative) */}
+            {stat.sub && (
               <span style={{
-                fontSize: "10px",
-                fontWeight: 600,
-                color: stat.up ? "#22d3a0" : "#f43f5e",
-                letterSpacing: "0.04em",
+                fontSize: "9px",
+                color: "var(--color-text-muted)",
+                letterSpacing: "0.05em",
                 lineHeight: 1,
               }}>
-                {stat.up ? "▲" : "▼"} {stat.delta}
+                {stat.sub}
               </span>
-
-              {/* Blinking cursor on the last (most "live") cell */}
-              {i === 2 && <Cursor />}
-            </div>
+            )}
           </div>
         );
       })}
@@ -156,20 +188,25 @@ export function StatCards({ data }: { data: StatCardsData }) {
           50%       { opacity: 0; }
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 800px) {
           .stat-strip {
             display: grid !important;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
           }
           .stat-cell {
             border-right: none !important;
             flex: unset;
           }
-          .stat-cell-1, .stat-cell-3 {
-            border-left: 1px solid var(--color-border);
-          }
-          .stat-cell-0, .stat-cell-1 {
+          .stat-cell-1, .stat-cell-3 { border-left: 1px solid var(--color-border); }
+          .stat-cell-2               { border-left: 1px solid var(--color-border); }
+          .stat-cell-0, .stat-cell-1, .stat-cell-2 {
             border-bottom: 1px solid var(--color-border);
+          }
+        }
+
+        @media (max-width: 540px) {
+          .stat-strip {
+            grid-template-columns: 1fr 1fr !important;
           }
         }
       `}</style>
