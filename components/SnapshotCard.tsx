@@ -9,6 +9,9 @@ export interface SnapshotPreviewCampaign {
   name: string;
   brand_name: string | null;
   brand_logo_url: string | null;
+  /** Up to 4 thumbnails (new schema). Falls back to first_thumbnail. */
+  thumbnails?: string[];
+  /** Legacy field — kept for rows saved before the thumbnails[] upgrade. */
   first_thumbnail: string | null;
 }
 
@@ -25,16 +28,47 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
+/**
+ * Maps the 4 mosaic quadrant positions to [campaignIndex, thumbIndex] pairs.
+ *
+ * Quadrant layout (i = slot index):
+ *   0 (top-left)  | 1 (top-right)
+ *   2 (bot-left)  | 3 (bot-right)
+ *
+ * Allocation rules:
+ *   1 campaign  → all 4 slots from campaign 0   (thumb 0, 1, 2, 3)
+ *   2 campaigns → left column = camp 0,  right column = camp 1
+ *   3 campaigns → left column = camp 0,  top-right = camp 1, bot-right = camp 2
+ *   4 campaigns → one thumbnail per campaign (1 each, no repeats)
+ */
+function allocateSlots(numCampaigns: number): Array<[number, number]> {
+  switch (numCampaigns) {
+    case 0: return [[0, 0], [0, 1], [0, 2], [0, 3]];
+    case 1: return [[0, 0], [0, 1], [0, 2], [0, 3]];
+    case 2: return [[0, 0], [1, 0], [0, 1], [1, 1]];  // columns by brand
+    case 3: return [[0, 0], [1, 0], [0, 1], [2, 0]];  // brand 0 gets left col
+    default: return [[0, 0], [1, 0], [2, 0], [3, 0]]; // 4 campaigns, 1 each
+  }
+}
+
+/** Resolve a thumbnail URL for a given campaign + thumb index, with legacy fallback. */
+function getThumb(camp: SnapshotPreviewCampaign | undefined, thumbIdx: number): string | null {
+  if (!camp) return null;
+  if (camp.thumbnails && camp.thumbnails.length > thumbIdx) return camp.thumbnails[thumbIdx];
+  // Legacy rows only have first_thumbnail
+  if (thumbIdx === 0) return camp.first_thumbnail ?? null;
+  return null;
+}
+
 export function SnapshotCard({ snapshot, onDelete }: Props) {
   const [hovered, setHovered] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const campaigns = snapshot.preview_data?.campaigns ?? [];
-  // Pad to exactly 4 slots so the 2×2 grid always has all quadrants
-  const thumbSlots = [...campaigns.map(c => c.first_thumbnail), null, null, null, null].slice(0, 4) as (string | null)[];
   const date = new Date(snapshot.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-  // At least one real thumbnail present
+  const slots = allocateSlots(campaigns.length);
+  const thumbSlots: (string | null)[] = slots.map(([ci, ti]) => getThumb(campaigns[ci], ti));
   const hasAnyThumb = thumbSlots.some(Boolean);
 
   async function handleDelete(e: React.MouseEvent) {
@@ -60,7 +94,7 @@ export function SnapshotCard({ snapshot, onDelete }: Props) {
         animation: "fadeInUp 0.3s ease both",
       }}
     >
-      {/* ── Square thumbnail mosaic — matches CampaignSummaryGrid exactly ── */}
+      {/* ── Square 2×2 thumbnail mosaic ── */}
       <div style={{
         position: "relative",
         width: "100%",
@@ -70,7 +104,6 @@ export function SnapshotCard({ snapshot, onDelete }: Props) {
         background: "var(--color-surface-2)",
       }}>
         {!hasAnyThumb && (
-          // Full-square empty state
           <div style={{
             position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
