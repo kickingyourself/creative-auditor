@@ -47,15 +47,15 @@ export function CreativeGrid({ items, heroCreativeId, onToggleHero }: Props) {
           ...item,
           creative: {
             ...item.creative,
-            brand_id:      patch.brand_id,
-            brand_name:    patch.brand_name !== undefined ? patch.brand_name : item.creative.brand_name,
-            campaign_id:   patch.campaign_id,
+            brand_id: patch.brand_id,
+            brand_name: patch.brand_name !== undefined ? patch.brand_name : item.creative.brand_name,
+            campaign_id: patch.campaign_id,
             campaign_name: patch.campaign_name !== undefined ? patch.campaign_name ?? null : item.creative.campaign_name,
-            title:         patch.title !== null && patch.title !== undefined
-                             ? patch.title
-                             : item.creative.title,
-            created_at:    patch.created_at,
-            published_at:  patch.created_at,
+            title: patch.title !== null && patch.title !== undefined
+              ? patch.title
+              : item.creative.title,
+            created_at: patch.created_at,
+            published_at: patch.created_at,
           },
         };
       })

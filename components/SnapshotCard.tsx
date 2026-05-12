@@ -60,8 +60,10 @@ export function SnapshotCard({ snapshot, onDelete }: Props) {
       <div style={{
         display: "grid",
         gridTemplateColumns: thumbs.length > 1 ? "1fr 1fr" : "1fr",
+        gridTemplateRows: thumbs.length > 2 ? "1fr 1fr" : "1fr",
         gap: 2, background: "var(--color-bg)",
         aspectRatio: "16/7",
+        overflow: "hidden",
       }}>
         {thumbs.length === 0 && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-surface-2)" }}>
@@ -69,8 +71,10 @@ export function SnapshotCard({ snapshot, onDelete }: Props) {
           </div>
         )}
         {thumbs.slice(0, 4).map((url, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={i} src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <div key={i} style={{ position: "relative", overflow: "hidden" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          </div>
         ))}
       </div>
 
