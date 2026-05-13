@@ -42,9 +42,16 @@ export async function PATCH(
   try { supabase = getSupabase(); }
   catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
 
+  // CampaignUpdate includes hero_creative_id via the intersection type in database.types.ts.
+  // The explicit cast here insulates against Supabase client generics resolving it as `never`
+  // if the generated types cache lags behind the schema.
+  type HeroUpdate = { hero_creative_id: string | null };
+  const patch = { hero_creative_id: creative_id as string | null } satisfies HeroUpdate;
+
   const { data, error } = await supabase
     .from("campaigns")
-    .update({ hero_creative_id: creative_id as string | null })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .update(patch as any)
     .eq("id", campaignId)
     .select("id, hero_creative_id")
     .single();
