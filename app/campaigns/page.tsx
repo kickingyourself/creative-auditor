@@ -31,7 +31,7 @@ export default async function CampaignsPage() {
       end_date,
       created_at,
       brands(name, logo_url),
-      creatives(id)
+      creatives!campaign_id(id)
     `)
     .order("created_at", { ascending: false });
 
