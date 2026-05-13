@@ -124,31 +124,21 @@ export default async function CampaignPage(
   const { id } = await params;
   const supabase = createServerClient();
 
-  // 1. Campaign + brand info
+  // 1. Campaign + brand info (including persistent hero selection)
   const { data: campaignData, error: campErr } = await supabase
     .from("campaigns")
-    .select("id, name, brands(id, name, logo_url)")
+    .select("id, name, hero_creative_id, brands(id, name, logo_url)")
     .eq("id", id)
     .single();
 
   if (campErr || !campaignData) notFound();
 
   const campaign = campaignData as {
-    id: string; name: string;
+    id: string; name: string; hero_creative_id: string | null;
     brands: { id: string; name: string; logo_url: string | null } | null;
   };
 
-  // Query hero_creative_id separately — resilient to the column not existing yet
-  // (migration: ALTER TABLE campaigns ADD COLUMN hero_creative_id uuid REFERENCES creatives(id) ON DELETE SET NULL)
-  let heroCreativeId: string | null = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: heroData } = await (supabase.from("campaigns") as any)
-      .select("hero_creative_id")
-      .eq("id", id)
-      .single();
-    heroCreativeId = (heroData as { hero_creative_id: string | null } | null)?.hero_creative_id ?? null;
-  } catch { /* column not yet migrated — default to null */ }
+  const heroCreativeId: string | null = campaign.hero_creative_id ?? null;
 
   // 2. All creatives for this campaign
   const { data: rows, error: rowErr } = await supabase

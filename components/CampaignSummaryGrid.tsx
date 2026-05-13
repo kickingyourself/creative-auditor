@@ -33,17 +33,27 @@ interface Props {
 // ── Platform colour map (matches CreativeCard) ────────────────────────────────
 
 const PLATFORM_COLORS: Record<string, { color: string; bg: string; label: string }> = {
-  youtube:  { color: "#ff4444", bg: "rgba(255,68,68,0.12)",   label: "YouTube"  },
-  tiktok:   { color: "#ff0050", bg: "rgba(255,0,80,0.12)",    label: "TikTok"   },
-  landing_page: { color: "#22d3a0", bg: "rgba(34,211,160,0.12)",  label: "Landing Page" },
-  meta:     { color: "#0ea5e9", bg: "rgba(14,165,233,0.12)",  label: "Meta"     },
-  social:   { color: "#a78bfa", bg: "rgba(167,139,250,0.12)", label: "Social"   },
-  website:  { color: "#fb923c", bg: "rgba(251,146,60,0.12)",  label: "Website"  },
-  other:    { color: "#9a9990", bg: "rgba(154,153,144,0.12)", label: "Other"    },
+  youtube:      { color: "#ff4444", bg: "rgba(255,68,68,0.12)",    label: "YouTube"       },
+  tiktok:       { color: "#69c9d0", bg: "rgba(105,201,208,0.12)", label: "TikTok"        },
+  landing_page: { color: "#22d3a0", bg: "rgba(34,211,160,0.12)",  label: "Landing Page"  },
+  homepage:     { color: "#22d3a0", bg: "rgba(34,211,160,0.12)",  label: "Landing Page"  },
+  pinterest:    { color: "#e60023", bg: "rgba(230,0,35,0.12)",    label: "Pinterest"     },
+  instagram:    { color: "#e1306c", bg: "rgba(225,48,108,0.12)",  label: "Instagram"     },
+  facebook:     { color: "#1877f2", bg: "rgba(24,119,242,0.12)",  label: "Facebook"      },
+  meta:         { color: "#1877f2", bg: "rgba(24,119,242,0.12)",  label: "Meta"          },
+  social:       { color: "#a78bfa", bg: "rgba(167,139,250,0.12)", label: "Social"        },
+  programmatic: { color: "#f59e0b", bg: "rgba(245,158,11,0.12)",  label: "Programmatic"  },
+  ooh:          { color: "#06b6d4", bg: "rgba(6,182,212,0.12)",   label: "OOH"           },
+  tvc:          { color: "#8b5cf6", bg: "rgba(139,92,246,0.12)",  label: "TVC"           },
+  website:      { color: "#fb923c", bg: "rgba(251,146,60,0.12)",  label: "Website"       },
 };
 
 function platformStyle(p: string) {
-  return PLATFORM_COLORS[p] ?? PLATFORM_COLORS.other;
+  return PLATFORM_COLORS[p] ?? {
+    color: "#9a9990",
+    bg: "rgba(154,153,144,0.12)",
+    label: p.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  };
 }
 
 // ── Tile ──────────────────────────────────────────────────────────────────────

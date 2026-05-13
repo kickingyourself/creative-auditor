@@ -42,14 +42,12 @@ export async function PATCH(
   try { supabase = getSupabase(); }
   catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
 
-  // hero_creative_id is not in the generated types yet (migration pending);
-  // cast the table reference to bypass the strict generic.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.from("campaigns") as any)
+  const { data, error } = await supabase
+    .from("campaigns")
     .update({ hero_creative_id: creative_id as string | null })
     .eq("id", campaignId)
     .select("id, hero_creative_id")
-    .single() as { data: { id: string; hero_creative_id: string | null } | null; error: { message: string } | null };
+    .single();
 
   if (error) {
     return apiError("SUPABASE_UPDATE_ERROR", error.message);
