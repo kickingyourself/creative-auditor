@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   description: "Build a side-by-side competitive ad creative comparison.",
 };
 
+// Always render at request time — fetches live campaign data from Supabase
+export const dynamic = "force-dynamic";
+
 export default async function NewComparisonPage() {
   const supabase = await createServerClient();
   const { data } = await supabase
