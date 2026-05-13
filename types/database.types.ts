@@ -146,7 +146,10 @@ export type BrandUpdate = Partial<Omit<BrandInsert, 'id' | 'created_at'>>;
 
 export type CampaignUpdate = Partial<
   Omit<CampaignInsert, 'id' | 'brand_id' | 'created_at'>
->;
+> & {
+  /** Pinned hero creative for the campaign dashboard. */
+  hero_creative_id?: string | null;
+};
 
 /**
  * All fields that may be patched on a creative.

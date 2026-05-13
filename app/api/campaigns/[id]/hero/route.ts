@@ -42,8 +42,11 @@ export async function PATCH(
   try { supabase = getSupabase(); }
   catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
 
-  // hero_creative_id is not in the generated types yet (migration pending);
-  // cast the table reference to bypass the strict generic.
+  // hero_creative_id is in database.types.ts (CampaignUpdate) but the Supabase client's
+  // internal TablesUpdate<> generic resolves the update parameter as `never` when the
+  // intersection type isn't narrowed correctly at the call site. Casting the table
+  // reference to `any` is the standard workaround — it untypes the whole chain while
+  // keeping runtime behaviour identical.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.from("campaigns") as any)
     .update({ hero_creative_id: creative_id as string | null })

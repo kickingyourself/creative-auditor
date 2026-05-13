@@ -119,7 +119,7 @@ export default async function DashboardPage() {
     // ── Fetch latest 20 creatives with brand name joined ──────────────────────
     const { data: rows, error: rowsErr } = await supabase
       .from("creatives")
-      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns(name)")
+      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns!campaign_id(name)")
       .order("created_at", { ascending: false })
       .limit(20);
 
@@ -161,7 +161,7 @@ export default async function DashboardPage() {
     // Fetch all creatives with brand + campaign info (no limit) for grouping.
     const { data: allRows } = await supabase
       .from("creatives")
-      .select("brand_id, campaign_id, platform, thumbnail_url, brands(name, logo_url), campaigns(name)")
+      .select("brand_id, campaign_id, platform, thumbnail_url, brands(name, logo_url), campaigns!campaign_id(name)")
       .order("created_at", { ascending: false });
 
     if (allRows) {

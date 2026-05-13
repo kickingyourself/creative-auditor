@@ -77,7 +77,7 @@ export async function GET(
   const [campRes, crRes] = await Promise.all([
     supabase.from("campaigns").select("id, name, brands(id, name, logo_url)").eq("id", id).single(),
     supabase.from("creatives")
-      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns(id, name)")
+      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns!campaign_id(id, name)")
       .eq("campaign_id", id).order("created_at", { ascending: false }),
   ]);
 
