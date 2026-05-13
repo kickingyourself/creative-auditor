@@ -317,6 +317,7 @@ export async function POST(request: Request): Promise<Response> {
       campaign_id:     campaignId,
       platform:        "youtube",
       source_url:      sourceUrl,
+      title:           title,
       thumbnail_url:   thumbnailUrl,
       view_count:      viewCount,
       engagement_rate: engagementRate,

@@ -1,26 +1,103 @@
 "use client";
 
-import { Film, Eye, Building2, TrendingUp } from "lucide-react";
+import { Film, Clock, Building2, TrendingUp, Database } from "lucide-react";
 
 export interface StatCardsData {
   totalCreatives: number;
   totalBrands: number;
-  totalViews: number;
+  latestUploadAt: string | null;   // ISO timestamp of the most recently ingested creative
   topPlatform: string;
+  totalCampaigns: number;          // Total number of campaigns
 }
 
 function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString();
+}
+
+/** Relative time: "2h ago", "just now", "3d ago" */
+function relativeTime(iso: string | null): string {
+  if (!iso) return "—";
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60)          return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60)          return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)          return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+/** Short absolute timestamp: "13 May 00:04" */
+function shortTs(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric", month: "short",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+}
+
+/** Blinking cursor to sell the live-terminal feel */
+function Cursor() {
+  return (
+    <span
+      aria-hidden
+      style={{ animation: "blink 1.1s step-end infinite", color: "var(--color-accent)" }}
+    >
+      ▮
+    </span>
+  );
 }
 
 export function StatCards({ data }: { data: StatCardsData }) {
   const stats = [
-    { id: "stat-total-creatives", label: "Creatives",    value: fmt(data.totalCreatives), icon: Film,       color: "#4fb3ba" },
-    { id: "stat-total-brands",    label: "Brands",       value: fmt(data.totalBrands),    icon: Building2,  color: "#38bdf8" },
-    { id: "stat-total-views",     label: "Total Views",  value: fmt(data.totalViews),     icon: Eye,        color: "#22d3a0" },
-    { id: "stat-top-platform",    label: "Top Platform", value: data.topPlatform || "—",  icon: TrendingUp, color: "#f59e0b" },
+    {
+      id:      "stat-total-creatives",
+      label:   "CREATIVES",
+      value:   fmt(data.totalCreatives),
+      sub:     null,
+      icon:    Film,
+      color:   "#4fb3ba",
+      cursor:  false,
+    },
+    {
+      id:      "stat-total-brands",
+      label:   "BRANDS",
+      value:   fmt(data.totalBrands),
+      sub:     null,
+      icon:    Building2,
+      color:   "#38bdf8",
+      cursor:  false,
+    },
+    {
+      id:      "stat-top-platform",
+      label:   "TOP PLATFORM",
+      value:   data.topPlatform || "—",
+      sub:     null,
+      icon:    TrendingUp,
+      color:   "#f59e0b",
+      cursor:  false,
+    },
+    {
+      id:      "stat-total-campaigns",
+      label:   "CAMPAIGNS",
+      value:   fmt(data.totalCampaigns),
+      sub:     null,
+      icon:    Database,
+      color:   "#a78bfa",
+      cursor:  false,
+    },
+    {
+      id:      "stat-latest-upload",
+      label:   "LATEST UPLOAD",
+      value:   relativeTime(data.latestUploadAt),
+      sub:     shortTs(data.latestUploadAt),
+      icon:    Clock,
+      color:   "#22d3a0",
+      cursor:  true,
+    },
   ];
 
   return (
@@ -29,13 +106,14 @@ export function StatCards({ data }: { data: StatCardsData }) {
       className="stat-strip"
       style={{
         display: "flex",
-        alignItems: "center",
+        alignItems: "stretch",
         gap: 0,
         background: "var(--color-surface)",
         border: "1px solid var(--color-border)",
         borderRadius: "10px",
         marginBottom: "24px",
         overflow: "hidden",
+        fontFamily: "var(--font-geist-mono), 'Courier New', monospace",
       }}
     >
       {stats.map((stat, i) => {
@@ -44,61 +122,85 @@ export function StatCards({ data }: { data: StatCardsData }) {
           <div
             key={stat.id}
             id={stat.id}
+            className={`stat-cell stat-cell-${i}`}
             style={{
               flex: 1,
               display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              padding: "10px 18px",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: "4px",
+              padding: "10px 16px",
               borderRight: i < stats.length - 1 ? "1px solid var(--color-border)" : "none",
             }}
-            className={`stat-cell stat-cell-${i}`}
           >
-            <Icon size={13} color={stat.color} style={{ flexShrink: 0, opacity: 0.8 }} />
-            <div>
-              <p style={{
-                fontSize: "10px",
-                fontWeight: 500,
+            {/* Label row */}
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <Icon size={9} color={stat.color} style={{ flexShrink: 0 }} />
+              <span style={{
+                fontSize: "9px",
+                fontWeight: 600,
                 color: "var(--color-text-muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                lineHeight: 1,
-                marginBottom: "3px",
+                letterSpacing: "0.12em",
               }}>
                 {stat.label}
-              </p>
-              <p style={{
-                fontSize: "16px",
+              </span>
+            </div>
+
+            {/* Value row */}
+            <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+              <span style={{
+                fontSize: "17px",
                 fontWeight: 700,
                 color: "var(--color-text-primary)",
-                letterSpacing: "-0.02em",
+                letterSpacing: "-0.03em",
                 lineHeight: 1,
                 textTransform: "capitalize",
               }}>
                 {stat.value}
-              </p>
+              </span>
+              {stat.cursor && <Cursor />}
             </div>
+
+            {/* Sub-label (e.g. absolute timestamp under relative) */}
+            {stat.sub && (
+              <span style={{
+                fontSize: "9px",
+                color: "var(--color-text-muted)",
+                letterSpacing: "0.05em",
+                lineHeight: 1,
+              }}>
+                {stat.sub}
+              </span>
+            )}
           </div>
         );
       })}
 
       <style>{`
-        @media (max-width: 640px) {
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+
+        @media (max-width: 800px) {
           .stat-strip {
             display: grid !important;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
           }
           .stat-cell {
             border-right: none !important;
             flex: unset;
           }
-          /* Right column cells get a left border */
-          .stat-cell-1, .stat-cell-3 {
-            border-left: 1px solid var(--color-border);
-          }
-          /* Top two cells get a bottom border */
-          .stat-cell-0, .stat-cell-1 {
+          .stat-cell-1, .stat-cell-3 { border-left: 1px solid var(--color-border); }
+          .stat-cell-2               { border-left: 1px solid var(--color-border); }
+          .stat-cell-0, .stat-cell-1, .stat-cell-2 {
             border-bottom: 1px solid var(--color-border);
+          }
+        }
+
+        @media (max-width: 540px) {
+          .stat-strip {
+            grid-template-columns: 1fr 1fr !important;
           }
         }
       `}</style>

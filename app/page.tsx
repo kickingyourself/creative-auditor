@@ -105,9 +105,10 @@ export default async function DashboardPage() {
   let mapped: { creative: Creative; brandLogoUrl: string | null }[] = [];
   let statsData: StatCardsData = {
     totalCreatives: 0,
-    totalBrands: 0,
-    totalViews: 0,
-    topPlatform: "—",
+    totalBrands:    0,
+    latestUploadAt: null,
+    topPlatform:    "—",
+    totalCampaigns: 0,
   };
   let summaries: CampaignSummary[] = [];
   let dbError = false;
@@ -129,18 +130,14 @@ export default async function DashboardPage() {
     const [
       { count: totalCreatives },
       { count: totalBrands },
-      { data: viewData },
       { data: platformData },
+      { count: totalCampaigns },
     ] = await Promise.all([
       supabase.from("creatives").select("id", { count: "exact", head: true }),
       supabase.from("brands").select("id", { count: "exact", head: true }),
-      supabase.from("creatives").select("view_count"),
       supabase.from("creatives").select("platform"),
+      supabase.from("campaigns").select("id", { count: "exact", head: true }),
     ]);
-
-    const totalViews = ((viewData ?? []) as { view_count: number | null }[]).reduce(
-      (sum, r) => sum + (r.view_count ?? 0), 0
-    );
 
     // Top platform by count
     const platformCounts: Record<string, number> = {};
@@ -149,11 +146,15 @@ export default async function DashboardPage() {
     });
     const topPlatform = Object.entries(platformCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
 
+    // Latest upload timestamp — rows are already ordered desc by created_at
+    const latestUploadAt = (rows as CreativeRow[])[0]?.created_at ?? null;
+
     statsData = {
       totalCreatives: totalCreatives ?? 0,
       totalBrands:    totalBrands    ?? 0,
-      totalViews,
+      latestUploadAt,
       topPlatform,
+      totalCampaigns: totalCampaigns ?? 0,
     };
 
     // ── Brand+Campaign summary ─────────────────────────────────────────────

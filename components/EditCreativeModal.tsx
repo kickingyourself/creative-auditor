@@ -570,7 +570,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
           border: "1px solid var(--color-border)",
           boxShadow: "0 32px 80px rgba(0,0,0,0.6)",
           animation: "editModalIn 220ms cubic-bezier(0.22,1,0.36,1) both",
-          overflow: "hidden",
+          overflow: "visible",
           display: "flex",
           flexDirection: "column",
         }}
@@ -630,7 +630,7 @@ export function EditCreativeModal({ creative, onClose, onSave }: Props) {
           )}
 
           {/* Form */}
-          <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 20, overflowY: "auto", overflowX: "visible" }}>
 
             {/* Brand */}
             <FieldGroup icon={<Layers size={14} />} label="Brand">
