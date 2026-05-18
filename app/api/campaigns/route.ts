@@ -45,11 +45,11 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  let body: { brand_id?: string; name?: string };
+  let body: { brand_id?: string; name?: string; start_date?: string | null; description?: string | null };
   try { body = await req.json(); }
   catch { return apiError("INVALID_JSON", "Request body must be valid JSON."); }
 
-  const { brand_id, name } = body;
+  const { brand_id, name, start_date, description } = body;
   if (!brand_id || !name?.trim()) {
     return apiError("MISSING_BODY_FIELD", "brand_id and name are required.");
   }
@@ -60,8 +60,14 @@ export async function POST(req: Request): Promise<Response> {
 
   const { data, error } = await supabase
     .from("campaigns")
-    .insert({ brand_id, name: name.trim() })
-    .select("id, name")
+    .insert({
+      brand_id,
+      name: name.trim(),
+      start_date: start_date || null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...(description !== undefined && { description: description || null } as any),
+    })
+    .select("id, name, start_date, description")
     .single();
 
   if (error) {
