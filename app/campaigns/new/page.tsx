@@ -18,7 +18,7 @@ import { useState, useEffect, useRef, useTransition } from "react";
 import {
   Layers, ChevronRight, Plus, Globe, PlayCircle, LayoutGrid,
   Music2, Image, Monitor, MapPin, Tv2,
-  Pencil, Check, X, Loader2, AlertCircle, CalendarDays, AlignLeft, Tag,
+  Pencil, Check, CheckCircle2, X, Loader2, AlertCircle, CalendarDays, AlignLeft, Tag,
 } from "lucide-react";
 import Link from "next/link";
 import { LandingPageModal }  from "@/components/LandingPageModal";
@@ -176,25 +176,16 @@ interface CampaignMeta {
   brand: BrandOption | null;
 }
 
-function CampaignHeader({ meta, onMetaChange, onSave, saving, saveError }: {
+function CampaignHeader({ meta, onMetaChange, onSave, saving, saveError, editing, setEditing }: {
   meta: CampaignMeta;
   onMetaChange: (m: CampaignMeta) => void;
   onSave: () => void;
   saving: boolean;
   saveError: string | null;
+  editing: boolean;
+  setEditing: (v: boolean) => void;
 }) {
-  const [editing, setEditing] = useState(true); // start in edit mode for new campaign
   const isNew = !meta.id;
-
-  function handleSave() {
-    onSave();
-    setEditing(false);
-  }
-
-  function handleCancel() {
-    setEditing(false);
-  }
-
   const hasRequiredFields = !!meta.brand && !!meta.name.trim();
 
   return (
@@ -226,13 +217,14 @@ function CampaignHeader({ meta, onMetaChange, onSave, saving, saveError }: {
               value={meta.name}
               onChange={e => onMetaChange({ ...meta, name: e.target.value })}
               placeholder="Campaign name…"
+              autoFocus={isNew}
               style={{
                 fontSize: 28, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1,
                 color: "var(--color-text-primary)",
                 background: "transparent", border: "none",
-                borderBottom: "2px solid var(--color-accent)",
+                borderBottom: `2px solid ${hasRequiredFields ? "var(--color-accent)" : "rgba(255,255,255,0.12)"}`,
                 outline: "none", width: "100%", padding: "4px 0 8px",
-                marginBottom: 4,
+                marginBottom: 4, transition: "border-color 200ms",
               }}
             />
           ) : (
@@ -261,14 +253,34 @@ function CampaignHeader({ meta, onMetaChange, onSave, saving, saveError }: {
           {editing ? (
             <>
               {!isNew && (
-                <button type="button" onClick={handleCancel}
+                <button type="button" onClick={() => setEditing(false)}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                   <X size={13} /> Cancel
                 </button>
               )}
-              <button type="button" onClick={handleSave} disabled={!hasRequiredFields || saving}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 8, border: "none", background: hasRequiredFields && !saving ? "linear-gradient(135deg, var(--color-accent), #22d3a0)" : "var(--color-surface-2)", color: hasRequiredFields && !saving ? "#fff" : "var(--color-text-muted)", fontSize: 12, fontWeight: 700, cursor: hasRequiredFields && !saving ? "pointer" : "not-allowed", boxShadow: hasRequiredFields ? "0 2px 8px rgba(79,179,186,0.25)" : "none", transition: "all 200ms" }}>
-                {saving ? <><Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Saving…</> : <><Check size={13} /> {isNew ? "Create Campaign" : "Save Changes"}</>}
+              <button
+                id="btn-create-campaign"
+                type="button"
+                onClick={onSave}
+                disabled={!hasRequiredFields || saving}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "7px 18px", borderRadius: 8, border: "none",
+                  background: hasRequiredFields && !saving
+                    ? "linear-gradient(135deg, var(--color-accent), #22d3a0)"
+                    : "var(--color-surface-2)",
+                  color: hasRequiredFields && !saving ? "#fff" : "var(--color-text-muted)",
+                  fontSize: 12, fontWeight: 700,
+                  cursor: hasRequiredFields && !saving ? "pointer" : "not-allowed",
+                  boxShadow: hasRequiredFields && !saving ? "0 2px 10px rgba(79,179,186,0.3)" : "none",
+                  transition: "all 200ms ease",
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
+                {saving
+                  ? <><Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Saving…</>
+                  : <><Check size={13} /> {isNew ? "Create Campaign" : "Save Changes"}</>
+                }
               </button>
             </>
           ) : (
@@ -280,8 +292,16 @@ function CampaignHeader({ meta, onMetaChange, onSave, saving, saveError }: {
         </div>
       </div>
 
+      {/* Campaign saved pill */}
+      {!isNew && !editing && (
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, padding: "3px 10px", background: "rgba(34,211,160,0.08)", border: "1px solid rgba(34,211,160,0.2)", borderRadius: 20 }}>
+          <CheckCircle2 size={11} color="#22d3a0" />
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#22d3a0" }}>Campaign saved — add creatives below</span>
+        </div>
+      )}
+
       {/* Divider */}
-      <div style={{ marginTop: 20, height: 1, background: "var(--color-border)", opacity: 0.5 }} />
+      <div style={{ marginTop: 16, height: 1, background: "var(--color-border)", opacity: 0.5 }} />
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
@@ -331,61 +351,58 @@ function HeroPlaceholder() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function NewCampaignPage() {
-  // Campaign meta state
-  const [meta, setMeta] = useState<CampaignMeta>({ id: null, name: "", description: "", start_date: "", brand: null });
+  // Campaign meta + edit state
+  const [meta, setMeta]           = useState<CampaignMeta>({ id: null, name: "", description: "", start_date: "", brand: null });
+  const [editing, setEditing]     = useState(true); // new campaign starts in edit mode
   const [saving, setSaving]       = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [, startTransition]       = useTransition();
-
-  // Modal state
-  const [modalOpen,       setModalOpen]       = useState(false);
-  const [ytModalOpen,     setYtModalOpen]     = useState(false);
-  const [metaOpen,        setMetaOpen]        = useState(false);
-  const [tiktokOpen,      setTiktokOpen]      = useState(false);
-  const [pinterestOpen,   setPinterestOpen]   = useState(false);
-
-  const META_CONFIG: ChannelConfig = { platform: "meta",    label: "Meta",    icon: <LayoutGrid size={15} color="#1877f2" />, accentColor: "#1877f2", accentBg: "rgba(24,119,242,0.10)" };
-  const TIKTOK_CONFIG: ChannelConfig = { platform: "tiktok", label: "TikTok", icon: <Music2 size={15} color="#ff0050" />,    accentColor: "#ff0050", accentBg: "rgba(255,0,80,0.10)"   };
 
   // ── Save / update campaign ──────────────────────────────────────────────────
-  function handleSave() {
+  async function handleSave() {
     if (!meta.brand || !meta.name.trim()) return;
     setSaveError(null);
     setSaving(true);
-
-    startTransition(async () => {
-      try {
-        if (meta.id) {
-          // PATCH existing
-          const res = await fetch(`/api/campaigns/${meta.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: meta.name.trim(), description: meta.description || null, start_date: meta.start_date || null }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.message ?? "Update failed");
-          setMeta(m => ({ ...m, id: data.campaign.id }));
-        } else {
-          // POST new
-          const res = await fetch("/api/campaigns", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ brand_id: meta.brand?.id ?? "", name: meta.name.trim(), description: meta.description || null, start_date: meta.start_date || null }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.message ?? "Create failed");
-          setMeta(m => ({ ...m, id: data.campaign.id }));
-        }
-      } catch (err) {
-        setSaveError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setSaving(false);
+    try {
+      if (meta.id) {
+        // PATCH existing
+        const res = await fetch(`/api/campaigns/${meta.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: meta.name.trim(), description: meta.description || null, start_date: meta.start_date || null }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message ?? "Update failed");
+      } else {
+        // POST new
+        const res = await fetch("/api/campaigns", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brand_id: meta.brand?.id ?? "", name: meta.name.trim(), description: meta.description || null, start_date: meta.start_date || null }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message ?? "Create failed");
+        setMeta(m => ({ ...m, id: data.campaign.id }));
       }
-    });
+      setEditing(false); // ← only exit edit mode after confirmed success
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  const brandId    = meta.brand?.id    ?? "";
-  const brandName  = meta.brand?.name  ?? "";
+  // Modal state
+  const [modalOpen,     setModalOpen]     = useState(false);
+  const [ytModalOpen,   setYtModalOpen]   = useState(false);
+  const [metaOpen,      setMetaOpen]      = useState(false);
+  const [tiktokOpen,    setTiktokOpen]    = useState(false);
+  const [pinterestOpen, setPinterestOpen] = useState(false);
+
+  const META_CONFIG: ChannelConfig   = { platform: "meta",   label: "Meta",   icon: <LayoutGrid size={15} color="#1877f2" />, accentColor: "#1877f2", accentBg: "rgba(24,119,242,0.10)" };
+  const TIKTOK_CONFIG: ChannelConfig = { platform: "tiktok", label: "TikTok", icon: <Music2    size={15} color="#ff0050" />, accentColor: "#ff0050", accentBg: "rgba(255,0,80,0.10)"   };
+
+  const brandId    = meta.brand?.id   ?? "";
+  const brandName  = meta.brand?.name ?? "";
   const campaignId = meta.id;
 
   return (
@@ -409,6 +426,8 @@ export default function NewCampaignPage() {
         onSave={handleSave}
         saving={saving}
         saveError={saveError}
+        editing={editing}
+        setEditing={setEditing}
       />
 
       {/* Channel canvas — full width, no sidebar */}
