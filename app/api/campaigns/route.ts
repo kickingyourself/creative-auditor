@@ -64,10 +64,8 @@ export async function POST(req: Request): Promise<Response> {
       brand_id,
       name: name.trim(),
       start_date: start_date || null,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...(description !== undefined && { description: description || null } as any),
     })
-    .select("id, name, start_date, description")
+    .select("id, name, start_date")
     .single();
 
   if (error) {

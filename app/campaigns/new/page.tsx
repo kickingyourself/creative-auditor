@@ -368,19 +368,19 @@ export default function NewCampaignPage() {
         const res = await fetch(`/api/campaigns/${meta.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: meta.name.trim(), description: meta.description || null, start_date: meta.start_date || null }),
+          body: JSON.stringify({ name: meta.name.trim(), start_date: meta.start_date || null }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message ?? "Update failed");
+        if (!res.ok) throw new Error(data.error ?? "Update failed");
       } else {
         // POST new
         const res = await fetch("/api/campaigns", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ brand_id: meta.brand?.id ?? "", name: meta.name.trim(), description: meta.description || null, start_date: meta.start_date || null }),
+          body: JSON.stringify({ brand_id: meta.brand?.id ?? "", name: meta.name.trim(), start_date: meta.start_date || null }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message ?? "Create failed");
+        if (!res.ok) throw new Error(data.error ?? "Create failed");
         setMeta(m => ({ ...m, id: data.campaign.id }));
       }
       setEditing(false); // ← only exit edit mode after confirmed success
