@@ -36,15 +36,13 @@ export async function PATCH(
   try { body = await request.json(); }
   catch { return apiError("INVALID_JSON", "Request body must be valid JSON."); }
 
-  // Build only the fields that were sent
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const patch: Record<string, any> = {};
-  if (body.name       !== undefined) patch.name        = body.name?.trim() || null;
-  if (body.start_date !== undefined) patch.start_date  = body.start_date   || null;
-  if (body.description !== undefined) patch.description = body.description || null;
+  if (body.name       !== undefined) patch.name       = body.name?.trim() || null;
+  if (body.start_date !== undefined) patch.start_date = body.start_date   || null;
 
   if (!Object.keys(patch).length) {
-    return apiError("MISSING_BODY_FIELD", "At least one field (name, start_date, description) is required.");
+    return apiError("MISSING_BODY_FIELD", "At least one field (name, start_date) is required.");
   }
 
   let supabase;
@@ -55,7 +53,7 @@ export async function PATCH(
     .from("campaigns")
     .update(patch)
     .eq("id", id)
-    .select("id, name, start_date, description")
+    .select("id, name, start_date")
     .single();
 
   if (error) return apiError("SUPABASE_UPDATE_ERROR", error.message);
