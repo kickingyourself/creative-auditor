@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { LandingPageModal } from "@/components/LandingPageModal";
+import { YouTubeModal } from "@/components/YouTubeModal";
+import { ChannelModal, type ChannelConfig } from "@/components/ChannelModal";
+import { PinterestModal } from "@/components/PinterestModal";
 
 // ── Channel taxonomy ──────────────────────────────────────────────────────────
 
@@ -154,7 +157,26 @@ function MetaField({ icon: Icon, label, placeholder }: { icon: React.ElementType
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function NewCampaignPage() {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen,    setModalOpen]    = useState(false);
+  const [ytModalOpen,  setYtModalOpen]  = useState(false);
+  const [metaOpen,       setMetaOpen]       = useState(false);
+  const [tiktokOpen,     setTiktokOpen]     = useState(false);
+  const [pinterestOpen,  setPinterestOpen]  = useState(false);
+
+  const META_CONFIG: ChannelConfig = {
+    platform:    "meta",
+    label:       "Meta",
+    icon:        <LayoutGrid size={15} color="#1877f2" />,
+    accentColor: "#1877f2",
+    accentBg:    "rgba(24,119,242,0.10)",
+  };
+  const TIKTOK_CONFIG: ChannelConfig = {
+    platform:    "tiktok",
+    label:       "TikTok",
+    icon:        <Music2 size={15} color="#ff0050" />,
+    accentColor: "#ff0050",
+    accentBg:    "rgba(255,0,80,0.10)",
+  };
 
   // TODO: these will come from the campaign form state once the sidebar is wired up.
   // For now, a placeholder brandId is required by ScrapeForm / upload APIs.
@@ -221,8 +243,15 @@ export default function NewCampaignPage() {
                     <PlaceholderTile
                       key={idx}
                       tall={isLandingPage}
-                      interactive={isLandingPage}
-                      onClick={isLandingPage ? () => setModalOpen(true) : undefined}
+                      interactive={isLandingPage || ch.key === "youtube" || ch.key === "meta" || ch.key === "tiktok" || ch.key === "pinterest"}
+                      onClick={
+                      isLandingPage        ? () => setModalOpen(true)       :
+                      ch.key === "youtube"  ? () => setYtModalOpen(true)    :
+                      ch.key === "meta"     ? () => setMetaOpen(true)       :
+                      ch.key === "tiktok"   ? () => setTiktokOpen(true)     :
+                      ch.key === "pinterest"? () => setPinterestOpen(true)  :
+                      undefined
+                    }
                     />
                   ))}
                 </div>
@@ -297,10 +326,39 @@ export default function NewCampaignPage() {
       {/* Landing Page modal */}
       {modalOpen && (
         <LandingPageModal
-          brandId={brandId}
-          campaignId={campaignId}
+          brandId={brandId} campaignId={campaignId}
           onClose={() => setModalOpen(false)}
           onSuccess={() => setModalOpen(false)}
+        />
+      )}
+      {ytModalOpen && (
+        <YouTubeModal
+          brandId={brandId} campaignId={campaignId}
+          onClose={() => setYtModalOpen(false)}
+          onSuccess={() => setYtModalOpen(false)}
+        />
+      )}
+      {metaOpen && (
+        <ChannelModal
+          config={META_CONFIG}
+          brandId={brandId} campaignId={campaignId}
+          onClose={() => setMetaOpen(false)}
+          onSuccess={() => setMetaOpen(false)}
+        />
+      )}
+      {tiktokOpen && (
+        <ChannelModal
+          config={TIKTOK_CONFIG}
+          brandId={brandId} campaignId={campaignId}
+          onClose={() => setTiktokOpen(false)}
+          onSuccess={() => setTiktokOpen(false)}
+        />
+      )}
+      {pinterestOpen && (
+        <PinterestModal
+          brandId={brandId} campaignId={campaignId}
+          onClose={() => setPinterestOpen(false)}
+          onSuccess={() => setPinterestOpen(false)}
         />
       )}
     </div>
