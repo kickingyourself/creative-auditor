@@ -20,7 +20,6 @@ import { LandingPageModal }  from "@/components/LandingPageModal";
 import { YouTubeModal }      from "@/components/YouTubeModal";
 import { ChannelModal, type ChannelConfig } from "@/components/ChannelModal";
 import { PinterestModal }    from "@/components/PinterestModal";
-import { CampaignChannelSections } from "@/components/CampaignChannelSections";
 import type { Creative } from "@/types";
 
 // ── Channel config ────────────────────────────────────────────────────────────
@@ -239,9 +238,10 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
   const brandId   = campaign.brand?.id   ?? "";
   const brandName = campaign.brand?.name ?? "";
 
-  // filledChannels for CampaignChannelSections (hero picker etc.)
-  const filledChannels = channels.map(ch => ({ key: ch.key, label: ch.label, items: ch.items }));
-  const emptyChannelLabels = CHANNELS.filter(ch => !byChannel[ch.key]?.length).map(ch => ch.label);
+  // Hero = first landing_page, then youtube, then any
+  const heroItem = allItems.find(i => i.creative.platform === "landing_page")
+                ?? allItems.find(i => i.creative.platform === "youtube")
+                ?? allItems[0] ?? null;
 
   return (
     <div style={{ padding: "28px 28px 80px", maxWidth: 1100, margin: "0 auto" }}>
@@ -267,24 +267,29 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
           <div style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)", padding: "3px 10px", borderRadius: 20 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(251,191,36,0.7)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Hero Creative</span>
           </div>
-          {allItems.length > 0 && <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Pin your headline asset</span>}
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+            {heroItem ? "Pinned from your creatives below" : "Add a creative below to set your hero"}
+          </span>
         </div>
-        {allItems.length > 0 ? (
-          <CampaignChannelSections
-            filledChannels={filledChannels}
-            emptyChannelLabels={emptyChannelLabels}
-            allCreatives={allItems}
-            campaignId={id}
-            campaignName={campaign.name}
-            brandId={brandId}
-            brandName={brandName}
-            brandLogoUrl={campaign.brand?.logo_url ?? null}
-            initialHeroCreativeId={null}
-          />
+        {heroItem ? (
+          <div style={{ borderRadius: 18, overflow: "hidden", border: "1px solid var(--color-border)", background: "var(--color-surface-2)", display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 260 }}>
+            <div style={{ background: "var(--color-border)", overflow: "hidden" }}>
+              {heroItem.creative.thumbnail_url
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={heroItem.creative.thumbnail_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <div style={{ width: "100%", height: "100%", minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: 12 }}>No preview</div>
+              }
+            </div>
+            <div style={{ padding: "28px 32px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{heroItem.creative.platform.replace("_"," ")}</span>
+              <p style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", lineHeight: 1.3 }}>{heroItem.creative.title ?? heroItem.creative.source_url}</p>
+              {heroItem.creative.views != null && <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{(heroItem.creative.views/1000).toFixed(0)}K views</p>}
+            </div>
+          </div>
         ) : (
           <div style={{ width: "100%", height: 220, borderRadius: 16, border: "1.5px dashed rgba(251,191,36,0.2)", background: "rgba(251,191,36,0.02)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "rgba(251,191,36,0.3)" }}>No hero selected</p>
-            <p style={{ fontSize: 12, color: "var(--color-text-muted)", maxWidth: 280, textAlign: "center", lineHeight: 1.5 }}>Add a creative below, then pin it here as the campaign&apos;s headline asset</p>
+            <p style={{ fontSize: 12, color: "var(--color-text-muted)", maxWidth: 280, textAlign: "center", lineHeight: 1.5 }}>Add a creative below, then it will appear here automatically</p>
           </div>
         )}
       </div>
