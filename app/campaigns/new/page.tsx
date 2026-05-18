@@ -118,14 +118,15 @@ function HeroPlaceholder() {
         width: "100%", height: 340, borderRadius: 18,
         border: "1.5px dashed rgba(251,191,36,0.25)",
         background: "rgba(251,191,36,0.025)",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12,
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10,
       }}>
-        <div style={{ width: 56, height: 56, borderRadius: "50%", border: "1.5px dashed rgba(251,191,36,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Plus size={24} strokeWidth={1.5} color="rgba(251,191,36,0.35)" />
-        </div>
         <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(251,191,36,0.45)", marginBottom: 4 }}>Add hero creative</p>
-          <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Landing page, YouTube or flagship ad</p>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "rgba(251,191,36,0.35)", marginBottom: 6 }}>
+            No hero selected
+          </p>
+          <p style={{ fontSize: 12, color: "var(--color-text-muted)", maxWidth: 280, lineHeight: 1.5 }}>
+            Upload a creative below, then pin it here as your campaign&apos;s headline asset
+          </p>
         </div>
       </div>
     </div>
