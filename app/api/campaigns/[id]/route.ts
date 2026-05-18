@@ -16,6 +16,15 @@ function getSupabase() {
   return createClient<Database>(url, key, { auth: { persistSession: false } });
 }
 
+/** Untyped client — used when the generated CampaignUpdate type is too narrow (e.g. description column not yet in types). */
+function getSupabaseAny() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error("MISSING_SUPABASE_CONFIG");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return createClient<any>(url, key, { auth: { persistSession: false } });
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -39,7 +48,7 @@ export async function PATCH(
   }
 
   let supabase;
-  try { supabase = getSupabase(); }
+  try { supabase = getSupabaseAny(); }
   catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
 
   const { data, error } = await supabase
