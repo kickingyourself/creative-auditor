@@ -80,6 +80,7 @@ interface FileInfo { name: string; size: number; type: string }
 export async function POST(request: Request): Promise<Response> {
   let body: {
     brand_name?: string;
+    brand_id?: string;
     brand_website?: string;
     published_date?: string;
     platform?: string;
@@ -94,14 +95,15 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const brandName     = body.brand_name?.trim() ?? "";
+  const brandIdParam  = body.brand_id?.trim() ?? "";
   const brandWebsite  = body.brand_website?.trim() ?? "";
   const publishedDate = body.published_date?.trim() ?? "";
   const platform      = parsePlatform(body.platform ?? null);
   const campaignId    = body.campaign_id?.trim() || null;
   const files         = body.files ?? [];
 
-  if (!brandName)
-    return apiError("MISSING_BODY_FIELD", "'brand_name' is required.");
+  if (!brandName && !brandIdParam)
+    return apiError("MISSING_BODY_FIELD", "'brand_name' or 'brand_id' is required.");
   if (!publishedDate || isNaN(Date.parse(publishedDate)))
     return apiError("MISSING_BODY_FIELD", "'published_date' must be a valid date (YYYY-MM-DD).");
   if (!files.length)
@@ -120,30 +122,40 @@ export async function POST(request: Request): Promise<Response> {
   try { supabase = getSupabase(); }
   catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
 
-  // ── Find-or-create brand ────────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: existing } = await supabase.from("brands").select("id, name").ilike("name", brandName as any).limit(1);
-
+  // ── Resolve brand ────────────────────────────────────────────────────────────
+  // If brand_id is provided, look up directly (prevents ghost brand creation).
+  // Otherwise fall back to find-or-create by name.
   let brandId: string;
   let resolvedBrandName: string;
 
-  if (existing && existing.length > 0) {
-    const found = existing[0] as { id: string; name: string };
-    brandId = found.id;
-    resolvedBrandName = found.name;
+  if (brandIdParam) {
+    const { data: found } = await supabase.from("brands").select("id, name").eq("id", brandIdParam).single();
+    if (!found) return apiError("MISSING_BODY_FIELD", `Brand '${brandIdParam}' not found.`);
+    const b = found as { id: string; name: string };
+    brandId = b.id;
+    resolvedBrandName = b.name;
   } else {
-    const payload: { name: string; website_url?: string } = { name: brandName };
-    if (brandWebsite) {
-      try {
-        payload.website_url = new URL(/^https?:\/\//i.test(brandWebsite) ? brandWebsite : `https://${brandWebsite}`).toString();
-      } catch { /* ignore */ }
-    }
+    // Find-or-create by name
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: nb, error: be } = await supabase.from("brands").insert(payload as any).select("id, name").single();
-    if (be || !nb) return apiError("SUPABASE_INSERT_ERROR", `Failed to create brand "${brandName}": ${be?.message}`);
-    const created = nb as { id: string; name: string };
-    brandId = created.id;
-    resolvedBrandName = created.name;
+    const { data: existing } = await supabase.from("brands").select("id, name").ilike("name", brandName as any).limit(1);
+    if (existing && existing.length > 0) {
+      const found = existing[0] as { id: string; name: string };
+      brandId = found.id;
+      resolvedBrandName = found.name;
+    } else {
+      const payload: { name: string; website_url?: string } = { name: brandName };
+      if (brandWebsite) {
+        try {
+          payload.website_url = new URL(/^https?:\/\//i.test(brandWebsite) ? brandWebsite : `https://${brandWebsite}`).toString();
+        } catch { /* ignore */ }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: nb, error: be } = await supabase.from("brands").insert(payload as any).select("id, name").single();
+      if (be || !nb) return apiError("SUPABASE_INSERT_ERROR", `Failed to create brand "${brandName}": ${be?.message}`);
+      const created = nb as { id: string; name: string };
+      brandId = created.id;
+      resolvedBrandName = created.name;
+    }
   }
 
   // ── Generate signed upload URLs ─────────────────────────────────────────────

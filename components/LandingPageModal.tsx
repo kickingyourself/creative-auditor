@@ -238,7 +238,7 @@ function fmtBytes(b: number) {
 
 // ── Upload panel ──────────────────────────────────────────────────────────────
 
-function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: string | null }) {
+function UploadPanel({ brandId, brandName, campaignId }: { brandId: string; brandName?: string; campaignId?: string | null }) {
   const [queue, setQueue]         = useState<QueuedFile[]>([]);
   const [isDragging, setDragging] = useState(false);
   const [result, setResult]       = useState<FileResult[] | null>(null);
@@ -273,7 +273,7 @@ function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: st
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            brand_name:     brandId,   // server resolves by id via brand_id field below
+            brand_name:     brandName ?? brandId,
             brand_id:       brandId,
             platform:       "homepage",
             campaign_id:    campaignId || undefined,
@@ -565,6 +565,7 @@ export function LandingPageModal({ brandId, brandName, campaignId, campaignName,
           {tab === "upload" && (
             <UploadPanel
               brandId={brandId}
+              brandName={brandName}
               campaignId={campaignId}
             />
           )}
