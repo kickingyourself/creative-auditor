@@ -66,9 +66,47 @@ interface QueuedFile {
   sizes: string[];        // selected size tags
   customSize: string;     // filled when "Custom" is selected
   tagOpen: boolean;       // size picker popover open
+  autoDetected: boolean;  // true when size was detected automatically
 }
 
 interface UploadResult { status: string; filename: string; error?: string; }
+
+// ── Dimension detection ───────────────────────────────────────────────────────
+
+/** Detect pixel dimensions from a raster image file via the browser Image API. */
+function detectImageDimensions(file: File): Promise<string | null> {
+  return new Promise(resolve => {
+    if (!file.type.startsWith("image/")) { resolve(null); return; }
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload  = () => { URL.revokeObjectURL(url); resolve(`${img.naturalWidth}×${img.naturalHeight}`); };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+/** Parse a WxH or W×H dimension from a filename (e.g. banner_300x250.zip → '300×250'). */
+function detectDimensionsFromFilename(name: string): string | null {
+  const m = name.match(/(\d{2,4})[x×_\-](\d{2,4})/i);
+  if (!m) return null;
+  const w = parseInt(m[1], 10);
+  const h = parseInt(m[2], 10);
+  // Sanity check — ignore obvious false-positives like dates (2024×05)
+  if (w < 50 || h < 50 || w > 5000 || h > 5000) return null;
+  return `${w}×${h}`;
+}
+
+/**
+ * Given a raw WxH string, return { sizes, customSize } for the QueuedFile.
+ * If the dimension matches a known size label it's stored as-is;
+ * otherwise it's stored as a Custom entry.
+ */
+function resolveDimension(raw: string): { sizes: string[]; customSize: string } {
+  if (ALL_SIZES.includes(raw as (typeof ALL_SIZES)[number])) {
+    return { sizes: [raw], customSize: "" };
+  }
+  return { sizes: ["Custom"], customSize: raw };
+}
 
 // ── Size tag picker (per-file popover) ────────────────────────────────────────
 
@@ -139,16 +177,31 @@ function UploadPanel({ brandId, brandName, campaignId }: {
   const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function addFiles(files: FileList | File[]) {
+  async function addFiles(files: FileList | File[]) {
     const valid: QueuedFile[] = [];
     for (const f of Array.from(files)) {
       const normType = f.type || (f.name.endsWith(".zip") ? "application/zip" : f.name.endsWith(".html") || f.name.endsWith(".htm") ? "text/html" : "");
       if (!ACCEPTED_MIME.includes(normType) || f.size > MAX_MB * 1024 * 1024) continue;
       const preview = f.type.startsWith("image/") && f.type !== "image/gif"
         ? URL.createObjectURL(f) : null;
-      valid.push({ id: uid(), file: f, preview, sizes: [], customSize: "", tagOpen: false });
+
+      // Start with no sizes — detection runs below
+      valid.push({ id: uid(), file: f, preview, sizes: [], customSize: "", tagOpen: false, autoDetected: false });
     }
-    setQueue(p => [...p, ...valid]);
+    if (!valid.length) return;
+
+    // Auto-detect dimensions for each file
+    const detected = await Promise.all(valid.map(async qf => {
+      const isImage = qf.file.type.startsWith("image/");
+      const raw = isImage
+        ? await detectImageDimensions(qf.file)
+        : detectDimensionsFromFilename(qf.file.name);
+      if (!raw) return qf;
+      const { sizes, customSize } = resolveDimension(raw);
+      return { ...qf, sizes, customSize, autoDetected: true };
+    }));
+
+    setQueue(p => [...p, ...detected]);
   }
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -164,6 +217,11 @@ function UploadPanel({ brandId, brandName, campaignId }: {
     if (item.sizes.length === 0) return "Tag size";
     const labels = item.sizes.map(s => s === "Custom" && item.customSize ? item.customSize : s);
     return labels.join(", ");
+  }
+
+  function effectiveSize(item: QueuedFile): string {
+    if (item.sizes.length === 0) return "";
+    return item.sizes.map(s => s === "Custom" && item.customSize ? item.customSize : s).join(", ");
   }
 
   function handleUpload() {
@@ -304,10 +362,27 @@ function UploadPanel({ brandId, brandName, campaignId }: {
 
               {/* Name + size */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
                   {qf.file.name}
                 </p>
-                <p style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 6 }}>{fmtBytes(qf.file.size)}</p>
+
+                {/* Size row: detected badge OR tag button */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  {qf.autoDetected && qf.sizes.length > 0 && (
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: "rgba(34,211,160,0.15)", color: "#22d3a0", border: "1px solid rgba(34,211,160,0.3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Auto
+                    </span>
+                  )}
+                  <p style={{ fontSize: 10, color: "var(--color-text-muted)", margin: 0 }}>
+                    {qf.sizes.length > 0 ? effectiveSize(qf) : fmtBytes(qf.file.size)}
+                  </p>
+                  {qf.sizes.length === 0 && (
+                    <p style={{ fontSize: 10, color: "var(--color-text-muted)", margin: 0 }}>{/* byte size shown above */}</p>
+                  )}
+                </div>
+                {qf.sizes.length === 0 && (
+                  <p style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 6 }}>{fmtBytes(qf.file.size)}</p>
+                )}
 
                 {/* Size tag button + popover */}
                 <div style={{ position: "relative", display: "inline-block" }}>
@@ -323,7 +398,7 @@ function UploadPanel({ brandId, brandName, campaignId }: {
                     }}
                   >
                     <Tag size={10} />
-                    {sizeLabel(qf)}
+                    {qf.autoDetected && qf.sizes.length > 0 ? "Edit" : sizeLabel(qf)}
                     <ChevronDown size={9} />
                   </button>
 
@@ -331,26 +406,12 @@ function UploadPanel({ brandId, brandName, campaignId }: {
                     <SizePicker
                       selected={qf.sizes}
                       customSize={qf.customSize}
-                      onChange={sizes => updateItem(qf.id, { sizes })}
+                      onChange={sizes => updateItem(qf.id, { sizes, autoDetected: false })}
                       onCustomChange={customSize => updateItem(qf.id, { customSize })}
                       onClose={() => updateItem(qf.id, { tagOpen: false })}
                     />
                   )}
                 </div>
-
-                {/* Selected size pills */}
-                {qf.sizes.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 6 }}>
-                    {qf.sizes.map(s => {
-                      const label = s === "Custom" && qf.customSize ? qf.customSize : s;
-                      return (
-                        <span key={s} style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: ACCENT_BG, color: ACCENT, border: `1px solid ${ACCENT}40` }}>
-                          {label}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
               {/* Remove */}
