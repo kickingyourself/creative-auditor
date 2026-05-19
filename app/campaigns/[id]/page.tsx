@@ -12,10 +12,11 @@ import Link from "next/link";
 import {
   Layers, ChevronRight, Pencil, Check, X, Loader2, AlertCircle, RefreshCw, LayoutGrid, Music2,
 } from "lucide-react";
-import { LandingPageModal }  from "@/components/LandingPageModal";
-import { YouTubeModal }      from "@/components/YouTubeModal";
+import { LandingPageModal }    from "@/components/LandingPageModal";
+import { YouTubeModal }        from "@/components/YouTubeModal";
 import { ChannelModal, type ChannelConfig } from "@/components/ChannelModal";
-import { PinterestModal }    from "@/components/PinterestModal";
+import { PinterestModal }      from "@/components/PinterestModal";
+import { ProgrammaticModal }   from "@/components/ProgrammaticModal";
 import { CampaignChannelSections } from "@/components/CampaignChannelSections";
 import type { Creative } from "@/types";
 
@@ -128,11 +129,12 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
   const [tick, setTick]             = useState(0);
 
   // Modals
-  const [modalOpen,     setModalOpen]     = useState(false);
-  const [ytOpen,        setYtOpen]        = useState(false);
-  const [metaOpen,      setMetaOpen]      = useState(false);
-  const [tiktokOpen,    setTiktokOpen]    = useState(false);
-  const [pinterestOpen, setPinterestOpen] = useState(false);
+  const [modalOpen,         setModalOpen]         = useState(false);
+  const [ytOpen,            setYtOpen]            = useState(false);
+  const [metaOpen,          setMetaOpen]          = useState(false);
+  const [tiktokOpen,        setTiktokOpen]        = useState(false);
+  const [pinterestOpen,     setPinterestOpen]     = useState(false);
+  const [programmaticOpen,  setProgrammaticOpen]  = useState(false);
 
   const META_CONFIG: ChannelConfig   = { platform: "meta",   label: "Meta",   icon: <LayoutGrid size={14} color="#1877f2" />, accentColor: "#1877f2", accentBg: "rgba(24,119,242,0.10)" };
   const TIKTOK_CONFIG: ChannelConfig = { platform: "tiktok", label: "TikTok", icon: <Music2    size={14} color="#ff0050" />, accentColor: "#ff0050", accentBg: "rgba(255,0,80,0.10)"   };
@@ -189,11 +191,12 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
 
   // Per-channel add handlers passed into CampaignChannelSections
   const onAddCreative: Record<string, () => void> = {
-    landing_page: () => setModalOpen(true),
-    youtube:      () => setYtOpen(true),
-    meta:         () => setMetaOpen(true),
-    tiktok:       () => setTiktokOpen(true),
-    pinterest:    () => setPinterestOpen(true),
+    landing_page:  () => setModalOpen(true),
+    youtube:       () => setYtOpen(true),
+    meta:          () => setMetaOpen(true),
+    tiktok:        () => setTiktokOpen(true),
+    pinterest:     () => setPinterestOpen(true),
+    programmatic:  () => setProgrammaticOpen(true),
   };
 
   function onSuccess() { setTick(Date.now()); }
@@ -237,11 +240,12 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
       />
 
       {/* Modals */}
-      {modalOpen     && <LandingPageModal brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setModalOpen(false)}     onSuccess={() => { setModalOpen(false);     onSuccess(); }} />}
-      {ytOpen        && <YouTubeModal     brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setYtOpen(false)}        onSuccess={() => { setYtOpen(false);        onSuccess(); }} />}
-      {metaOpen      && <ChannelModal     config={META_CONFIG}   brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setMetaOpen(false)}      onSuccess={() => { setMetaOpen(false);      onSuccess(); }} />}
-      {tiktokOpen    && <ChannelModal     config={TIKTOK_CONFIG} brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setTiktokOpen(false)}    onSuccess={() => { setTiktokOpen(false);    onSuccess(); }} />}
-      {pinterestOpen && <PinterestModal   brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setPinterestOpen(false)} onSuccess={() => { setPinterestOpen(false); onSuccess(); }} />}
+      {modalOpen          && <LandingPageModal  brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setModalOpen(false)}          onSuccess={() => { setModalOpen(false);          onSuccess(); }} />}
+      {ytOpen             && <YouTubeModal      brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setYtOpen(false)}             onSuccess={() => { setYtOpen(false);             onSuccess(); }} />}
+      {metaOpen           && <ChannelModal      config={META_CONFIG}   brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setMetaOpen(false)}           onSuccess={() => { setMetaOpen(false);           onSuccess(); }} />}
+      {tiktokOpen         && <ChannelModal      config={TIKTOK_CONFIG} brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setTiktokOpen(false)}         onSuccess={() => { setTiktokOpen(false);         onSuccess(); }} />}
+      {pinterestOpen      && <PinterestModal    brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setPinterestOpen(false)}      onSuccess={() => { setPinterestOpen(false);      onSuccess(); }} />}
+      {programmaticOpen   && <ProgrammaticModal brandId={brandId} brandName={brandName} campaignId={id} onClose={() => setProgrammaticOpen(false)}   onSuccess={() => { setProgrammaticOpen(false);   onSuccess(); }} />}
     </div>
   );
 }

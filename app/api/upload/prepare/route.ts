@@ -47,6 +47,11 @@ const ALLOWED_MIME = new Set([
   "image/gif",
   "image/webp",
   "image/avif",
+  // Programmatic display
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/x-zip",
+  "text/html",
 ]);
 
 function getSupabase() {
@@ -68,8 +73,8 @@ function safeFilename(original: string): string {
   return `${base}-${Date.now()}${ext}`;
 }
 
-function parsePlatform(raw: string | null): "social" | "youtube" | "tiktok" | "homepage" {
-  const allowed = ["social", "youtube", "tiktok", "homepage"] as const;
+function parsePlatform(raw: string | null): "social" | "youtube" | "tiktok" | "homepage" | "meta" | "pinterest" | "programmatic" {
+  const allowed = ["social", "youtube", "tiktok", "homepage", "meta", "pinterest", "programmatic"] as const;
   return allowed.includes(raw as (typeof allowed)[number])
     ? (raw as (typeof allowed)[number])
     : "social";
@@ -113,7 +118,7 @@ export async function POST(request: Request): Promise<Response> {
   for (const f of files) {
     const normType = (f.type ?? "").split(";")[0].trim().toLowerCase();
     if (!ALLOWED_MIME.has(normType))
-      return apiError("INVALID_URL", `"${f.name}" has unsupported type "${f.type}". Allowed: MP4, MOV, JPEG, PNG, GIF, WebP, AVIF.`);
+      return apiError("INVALID_URL", `"${f.name}" has unsupported type "${f.type}". Allowed: MP4, MOV, JPEG, PNG, GIF, WebP, AVIF, ZIP (HTML5), HTML.`);
     if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024)
       return apiError("INVALID_URL", `"${f.name}" exceeds the ${MAX_FILE_SIZE_MB} MB limit (${(f.size / 1024 / 1024).toFixed(0)} MB).`);
   }
