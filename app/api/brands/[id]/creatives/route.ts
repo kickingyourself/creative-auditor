@@ -99,9 +99,11 @@ export async function GET(
     .eq("brand_id", id)
     .order("created_at", { ascending: false });
 
-  // Exclude creatives already in the target campaign
+  // Exclude creatives already in the target campaign.
+  // NOTE: .neq() alone drops NULLs because NULL != x evaluates to NULL in SQL.
+  // Use .or() to explicitly keep rows where campaign_id IS NULL.
   if (excludeCampaign) {
-    query = query.neq("campaign_id", excludeCampaign);
+    query = query.or(`campaign_id.is.null,campaign_id.neq.${excludeCampaign}`);
   }
 
   const { data, error } = await query;
