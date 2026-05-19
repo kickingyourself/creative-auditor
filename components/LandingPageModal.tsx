@@ -58,7 +58,11 @@ function LibraryPanel({ brandId, campaignId, onSuccess }: { brandId: string; cam
     setLoading(true); setFetchError(null);
     fetch(`/api/brands/${brandId}/creatives?exclude_campaign=${campaignId}`)
       .then(r => r.json())
-      .then(d => { setItems(d.creatives ?? []); setLoading(false); })
+      .then(d => {
+        const all = (d.creatives ?? []) as { creative: Creative; brandLogoUrl: string | null }[];
+        setItems(all.filter(i => i.creative.platform === "landing_page"));
+        setLoading(false);
+      })
       .catch(() => { setFetchError("Failed to load library."); setLoading(false); });
   }, [brandId, campaignId]);
 
@@ -139,10 +143,10 @@ function LibraryPanel({ brandId, campaignId, onSuccess }: { brandId: string; cam
         <div style={{ textAlign: "center", padding: "36px 24px", border: "1px dashed var(--color-border)", borderRadius: 10 }}>
           <LibraryBig size={24} color="var(--color-text-muted)" style={{ margin: "0 auto 10px", opacity: 0.35 }} />
           <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
-            {items.length === 0 ? "No other creatives in this brand's library" : "No results"}
+            {items.length === 0 ? "No landing page creatives in library" : "No results"}
           </p>
           <p style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
-            {items.length === 0 ? "All brand creatives are already in this campaign." : "Try a different search term."}
+            {items.length === 0 ? "Capture or upload landing pages for this brand first." : "Try a different search term."}
           </p>
         </div>
       ) : (
