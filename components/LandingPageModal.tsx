@@ -275,7 +275,7 @@ function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: st
           body: JSON.stringify({
             brand_name:     brandId,   // server resolves by id via brand_id field below
             brand_id:       brandId,
-            platform:       "landing_page",
+            platform:       "homepage",
             campaign_id:    campaignId || undefined,
             published_date: new Date().toISOString().slice(0, 10),
             files: queue.map(q => ({ name: q.file.name, size: q.file.size, type: q.file.type })),
@@ -327,7 +327,7 @@ function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: st
             items: successes.map((u: { storagePath: string; contentType: string; platform: string; campaignId: string | null; originalName: string }) => ({
               storagePath:          u.storagePath,
               contentType:          u.contentType,
-              platform:             "landing_page",
+              platform:             "homepage",
               campaignId:           campaignId ?? null,
               originalName:         u.originalName,
               thumbnailStoragePath: null,
