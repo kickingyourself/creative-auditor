@@ -4,15 +4,15 @@
  * components/BrandCard.tsx
  *
  * Client component for a single brand card.
- * Includes a hover-reveal delete button with a name-confirmation modal —
- * the user must type the exact brand name to confirm (since this cascades
- * to all associated creatives).
+ * Includes hover-reveal Edit and Delete buttons.
+ * - Edit: opens a modal to update brand name and website URL via PATCH /api/brands/:id
+ * - Delete: name-confirmation modal for safe cascade deletion
  */
 
 import { useState, useCallback } from "react";
 import {
   Building2, Globe, TrendingUp,
-  Trash2, AlertTriangle, Loader2,
+  Trash2, AlertTriangle, Loader2, Pencil, Check, X,
 } from "lucide-react";
 import { BrandIngestPanel } from "@/components/BrandIngestPanel";
 
@@ -31,6 +31,7 @@ interface BrandCardProps {
   brand: BrandWithCount;
   index: number;
   onDelete?: (id: string) => void;
+  onUpdate?: (id: string, updates: { name: string; website_url: string | null }) => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -58,8 +59,12 @@ function brandColor(name: string) {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function BrandCard({ brand, index, onDelete }: BrandCardProps) {
-  const { color, bg, initials } = brandColor(brand.name);
+export function BrandCard({ brand, index, onDelete, onUpdate }: BrandCardProps) {
+  // Local display state (optimistically updated on edit save)
+  const [displayName, setDisplayName]       = useState(brand.name);
+  const [displayUrl, setDisplayUrl]         = useState(brand.website_url);
+
+  const { color, bg, initials } = brandColor(displayName);
 
   // Hover + delete modal state
   const [hovered, setHovered]         = useState(false);
@@ -68,8 +73,16 @@ export function BrandCard({ brand, index, onDelete }: BrandCardProps) {
   const [isDeleting, setIsDeleting]   = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Edit modal state
+  const [showEditModal, setShowEditModal]   = useState(false);
+  const [editName, setEditName]             = useState(brand.name);
+  const [editUrl, setEditUrl]               = useState(brand.website_url ?? "");
+  const [isSaving, setIsSaving]             = useState(false);
+  const [editError, setEditError]           = useState<string | null>(null);
+  const [editSuccess, setEditSuccess]       = useState(false);
+
   // Must type the exact brand name to confirm (case-insensitive)
-  const confirmed = confirmText.trim().toLowerCase() === brand.name.trim().toLowerCase();
+  const confirmed = confirmText.trim().toLowerCase() === displayName.trim().toLowerCase();
 
   const openModal = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -80,6 +93,53 @@ export function BrandCard({ brand, index, onDelete }: BrandCardProps) {
     if (isDeleting) return;
     setShowModal(false); setConfirmText(""); setDeleteError(null);
   }, [isDeleting]);
+
+  const openEditModal = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditName(displayName);
+    setEditUrl(displayUrl ?? "");
+    setEditError(null);
+    setEditSuccess(false);
+    setShowEditModal(true);
+  }, [displayName, displayUrl]);
+
+  const closeEditModal = useCallback(() => {
+    if (isSaving) return;
+    setShowEditModal(false);
+    setEditError(null);
+    setEditSuccess(false);
+  }, [isSaving]);
+
+  async function handleSaveEdit() {
+    const trimmedName = editName.trim();
+    if (!trimmedName) { setEditError("Brand name is required."); return; }
+    if (isSaving) return;
+    setIsSaving(true); setEditError(null);
+    try {
+      const res = await fetch(`/api/brands/${brand.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmedName, website_url: editUrl.trim() || null }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setEditError(json?.detail ?? json?.error ?? "Save failed.");
+        setIsSaving(false);
+        return;
+      }
+      // Optimistically update displayed values
+      const updated = json.brand as { name: string; website_url: string | null };
+      setDisplayName(updated.name);
+      setDisplayUrl(updated.website_url);
+      onUpdate?.(brand.id, { name: updated.name, website_url: updated.website_url });
+      setEditSuccess(true);
+      setTimeout(() => setShowEditModal(false), 700);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Network error.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   async function handleDelete() {
     if (!confirmed || isDeleting) return;
@@ -150,11 +210,11 @@ export function BrandCard({ brand, index, onDelete }: BrandCardProps) {
               fontSize: "15px", fontWeight: 700,
               color: "var(--color-text-primary)", letterSpacing: "-0.02em",
             }}>
-              {brand.name}
+              {displayName}
             </h2>
-            {brand.website_url && (
+            {displayUrl && (
               <a
-                href={brand.website_url}
+                href={displayUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -164,13 +224,35 @@ export function BrandCard({ brand, index, onDelete }: BrandCardProps) {
                 }}
               >
                 <Globe size={11} />
-                {brand.website_url.replace(/^https?:\/\//, "")}
+                {displayUrl.replace(/^https?:\/\//, "")}
               </a>
             )}
           </div>
 
-          {/* Right-side: stats + delete button */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Right-side: stats + action buttons */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Edit button — reveals on hover */}
+            <button
+              onClick={openEditModal}
+              title="Edit brand"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 30, height: 30,
+                background: "rgba(99,102,241,0.85)",
+                backdropFilter: "blur(6px)",
+                border: "1px solid rgba(99,102,241,0.4)",
+                borderRadius: "8px",
+                cursor: "pointer",
+                opacity: hovered ? 1 : 0,
+                transform: hovered ? "scale(1)" : "scale(0.8)",
+                transition: "opacity 180ms ease, transform 180ms ease",
+                pointerEvents: hovered ? "auto" : "none",
+                flexShrink: 0,
+              }}
+            >
+              <Pencil size={12} color="#fff" />
+            </button>
+
             {/* Delete button — reveals on hover */}
             <button
               onClick={openModal}
@@ -220,6 +302,172 @@ export function BrandCard({ brand, index, onDelete }: BrandCardProps) {
         </div>
       </section>
 
+      {/* ── Edit brand modal ─────────────────────────────────────────────── */}
+      {showEditModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit brand"
+          onClick={closeEditModal}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.55)",
+            backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid rgba(99,102,241,0.25)",
+              borderRadius: 16, padding: 28,
+              maxWidth: 440, width: "100%",
+              display: "flex", flexDirection: "column", gap: 20,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.45)",
+              animation: "brandModalIn 200ms cubic-bezier(0.34,1.56,0.64,1) both",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+                  background: "rgba(99,102,241,0.12)",
+                  border: "1px solid rgba(99,102,241,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Pencil size={16} color="#6366f1" />
+                </div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>
+                  Edit Brand
+                </p>
+              </div>
+              <button
+                onClick={closeEditModal}
+                disabled={isSaving}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 28, height: 28, borderRadius: 7,
+                  border: "1px solid var(--color-border)",
+                  background: "none", cursor: "pointer",
+                  color: "var(--color-text-muted)",
+                  opacity: isSaving ? 0.4 : 1,
+                }}
+              >
+                <X size={13} />
+              </button>
+            </div>
+
+            {/* Name field */}
+            <div>
+              <label
+                htmlFor={`brand-edit-name-${brand.id}`}
+                style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 6 }}
+              >
+                Brand Name
+              </label>
+              <input
+                id={`brand-edit-name-${brand.id}`}
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") closeEditModal(); }}
+                placeholder="e.g. Nike"
+                autoFocus
+                autoComplete="off"
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  background: "var(--color-surface-2)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8, padding: "10px 12px",
+                  color: "var(--color-text-primary)",
+                  fontSize: 13, outline: "none",
+                  transition: "border-color 200ms",
+                }}
+              />
+            </div>
+
+            {/* Website URL field */}
+            <div>
+              <label
+                htmlFor={`brand-edit-url-${brand.id}`}
+                style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 6 }}
+              >
+                Homepage URL <span style={{ fontWeight: 400, color: "var(--color-text-muted)" }}>(optional)</span>
+              </label>
+              <input
+                id={`brand-edit-url-${brand.id}`}
+                type="text"
+                value={editUrl}
+                onChange={(e) => setEditUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") closeEditModal(); }}
+                placeholder="https://brand.com"
+                autoComplete="off"
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  background: "var(--color-surface-2)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8, padding: "10px 12px",
+                  color: "var(--color-text-primary)",
+                  fontSize: 13, outline: "none",
+                  transition: "border-color 200ms",
+                }}
+              />
+            </div>
+
+            {/* Error */}
+            {editError && (
+              <p style={{
+                fontSize: 12, color: "#f43f5e",
+                background: "rgba(244,63,94,0.08)",
+                padding: "8px 12px", borderRadius: 6, margin: 0,
+              }}>
+                {editError}
+              </p>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={closeEditModal}
+                disabled={isSaving}
+                style={{
+                  padding: "9px 18px", borderRadius: 8,
+                  border: "1px solid var(--color-border)",
+                  background: "none", color: "var(--color-text-secondary)",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  opacity: isSaving ? 0.4 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isSaving || !editName.trim()}
+                style={{
+                  padding: "9px 20px", borderRadius: 8, border: "none",
+                  background: editSuccess ? "#22c55e" : "#6366f1",
+                  color: "#fff",
+                  fontSize: 13, fontWeight: 700,
+                  cursor: isSaving || !editName.trim() ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", gap: 7,
+                  opacity: !editName.trim() ? 0.5 : 1,
+                  transition: "background 200ms",
+                }}
+              >
+                {editSuccess
+                  ? <><Check size={13} /> Saved!</>
+                  : isSaving
+                    ? <><Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Saving&hellip;</>
+                    : <><Check size={13} /> Save Changes</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Delete confirmation modal ──────────────────────────────────────── */}
       {showModal && (
         <div
@@ -258,7 +506,7 @@ export function BrandCard({ brand, index, onDelete }: BrandCardProps) {
               </div>
               <div>
                 <p style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)", lineHeight: 1.3 }}>
-                  Delete &ldquo;{brand.name}&rdquo;?
+                  Delete &ldquo;{displayName}&rdquo;?
                 </p>
                 <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 5, lineHeight: 1.6 }}>
                   This permanently removes the brand and all{" "}
@@ -291,7 +539,7 @@ export function BrandCard({ brand, index, onDelete }: BrandCardProps) {
                 </div>
               )}
               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>
-                {brand.name}
+                {displayName}
               </span>
               <span style={{
                 marginLeft: "auto", fontSize: 11, fontWeight: 600,

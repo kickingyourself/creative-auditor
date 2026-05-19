@@ -15,8 +15,9 @@ import { useEffect, useState, useRef, useCallback, useTransition } from "react";
 import { createPortal } from "react-dom";
 import {
   X, UploadCloud, Link2, Loader2,
-  CheckCircle2, AlertCircle, Film, Image as ImageIcon,
+  CheckCircle2, AlertCircle, Film, Image as ImageIcon, LibraryBig, Search, Check,
 } from "lucide-react";
+import type { Creative } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,8 +44,155 @@ interface Props {
 
 // ── Upload helpers ────────────────────────────────────────────────────────────
 
+type Tab = "upload" | "url" | "library";
+
 interface QueuedFile { id: string; file: File; preview: string | null; }
 interface UploadResult { status: string; filename: string; error?: string; }
+
+// ── Library panel (inline) ────────────────────────────────────────────────────
+
+function LibraryPanel({ brandId, campaignId, platform, accentColor, onSuccess }: {
+  brandId: string; campaignId?: string | null; platform: string; accentColor: string; onSuccess?: () => void;
+}) {
+  const [items, setItems]           = useState<{ creative: Creative; brandLogoUrl: string | null }[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [search, setSearch]         = useState("");
+  const [selected, setSelected]     = useState<Set<string>>(new Set());
+  const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState<string | null>(null);
+  const [saved, setSaved]           = useState(false);
+
+  useEffect(() => {
+    if (!campaignId) { setLoading(false); return; }
+    setLoading(true); setFetchError(null);
+    fetch(`/api/brands/${brandId}/creatives?exclude_campaign=${campaignId}`)
+      .then(r => r.json())
+      .then(d => {
+        // Filter to matching platform
+        const all = (d.creatives ?? []) as { creative: Creative; brandLogoUrl: string | null }[];
+        setItems(all.filter(i => i.creative.platform === platform));
+        setLoading(false);
+      })
+      .catch(() => { setFetchError("Failed to load library."); setLoading(false); });
+  }, [brandId, campaignId, platform]);
+
+  const filtered = items.filter(i => !search || i.creative.title.toLowerCase().includes(search.toLowerCase()));
+
+  function toggleSelect(id: string) {
+    setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  }
+
+  async function handleAssign() {
+    if (selected.size === 0 || saving || !campaignId) return;
+    setSaving(true); setSaveError(null);
+    try {
+      const results = await Promise.all(
+        Array.from(selected).map(cid =>
+          fetch(`/api/creatives/${cid}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ campaign_id: campaignId }),
+          }).then(r => r.json())
+        )
+      );
+      if (results.some(r => !r.updated)) { setSaveError("Some creatives could not be assigned."); }
+      else { setSaved(true); onSuccess?.(); }
+    } catch { setSaveError("Network error — please try again."); }
+    finally { setSaving(false); }
+  }
+
+  if (!campaignId) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "48px 24px", textAlign: "center" }}>
+      <LibraryBig size={28} color="var(--color-text-muted)" style={{ opacity: 0.4 }} />
+      <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>Save the campaign first to assign library creatives.</p>
+    </div>
+  );
+
+  if (saved) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "48px 24px", textAlign: "center" }}>
+      <div style={{ width: 44, height: 44, borderRadius: "50%", background: `${accentColor}22`, border: `1px solid ${accentColor}44`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <CheckCircle2 size={22} color={accentColor} />
+      </div>
+      <p style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)" }}>Added to campaign!</p>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ position: "relative" }}>
+        <Search size={12} color="var(--color-text-muted)" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+        <input type="text" placeholder="Search creatives…" value={search} onChange={e => setSearch(e.target.value)}
+          style={{ width: "100%", boxSizing: "border-box", paddingLeft: 28, paddingRight: 12, paddingTop: 9, paddingBottom: 9, background: "var(--color-surface-2)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-text-primary)", outline: "none" }}
+        />
+      </div>
+
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 160, gap: 8 }}>
+          <Loader2 size={16} style={{ animation: "spin 1s linear infinite", color: accentColor }} />
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Loading library…</span>
+        </div>
+      ) : fetchError ? (
+        <div style={{ display: "flex", gap: 8, padding: 12, background: "rgba(244,63,94,0.08)", border: "1px solid rgba(244,63,94,0.2)", borderRadius: 10 }}>
+          <AlertCircle size={13} color="#f43f5e" />
+          <p style={{ fontSize: 12, color: "#f43f5e", margin: 0 }}>{fetchError}</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "36px 24px", border: "1px dashed var(--color-border)", borderRadius: 10 }}>
+          <LibraryBig size={24} color="var(--color-text-muted)" style={{ margin: "0 auto 10px", opacity: 0.35 }} />
+          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
+            {items.length === 0 ? `No ${platform} creatives in library` : "No results"}
+          </p>
+          <p style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+            {items.length === 0 ? "Upload or ingest creatives for this brand first." : "Try a different search."}
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8, maxHeight: 320, overflowY: "auto" }}>
+          {filtered.map(item => {
+            const sel = selected.has(item.creative.id);
+            return (
+              <button key={item.creative.id} onClick={() => toggleSelect(item.creative.id)}
+                style={{ position: "relative", border: sel ? `2px solid ${accentColor}` : "2px solid var(--color-border)", borderRadius: 8, overflow: "hidden", cursor: "pointer", background: "var(--color-surface-2)", outline: "none", padding: 0, transition: "border-color 150ms" }}
+              >
+                <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#111" }}>
+                  {item.creative.thumbnail_url
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={item.creative.thumbnail_url} alt={item.creative.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {item.creative.ad_type === "image" ? <ImageIcon size={18} color="rgba(255,255,255,0.15)" /> : <Film size={18} color="rgba(255,255,255,0.15)" />}
+                      </div>
+                  }
+                  {sel && (
+                    <div style={{ position: "absolute", inset: 0, background: `${accentColor}33`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: accentColor, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Check size={12} color="#fff" strokeWidth={3} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <p style={{ fontSize: 10, fontWeight: 600, color: "var(--color-text-primary)", padding: "5px 7px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left", margin: 0 }}>
+                  {item.creative.title}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {saveError && <p style={{ fontSize: 12, color: "#f43f5e", margin: 0 }}>{saveError}</p>}
+
+      <button type="button" onClick={handleAssign} disabled={selected.size === 0 || saving}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 20px", borderRadius: 9, border: "none", background: selected.size > 0 && !saving ? `linear-gradient(135deg, ${accentColor}, ${accentColor}cc)` : "var(--color-surface-2)", color: selected.size > 0 && !saving ? "#fff" : "var(--color-text-muted)", fontSize: 13, fontWeight: 700, cursor: selected.size > 0 && !saving ? "pointer" : "not-allowed", opacity: selected.size === 0 ? 0.5 : 1, transition: "all 200ms" }}
+      >
+        {saving
+          ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Adding…</>
+          : <><Check size={14} /> Add {selected.size > 0 ? `${selected.size} ` : ""}to Campaign</>
+        }
+      </button>
+    </div>
+  );
+}
 
 const ACCEPTED = ["video/mp4","video/quicktime","image/jpeg","image/png","image/gif","image/webp","image/avif"];
 const ACCEPT_STRING = ".mp4,.mov,.jpg,.jpeg,.png,.gif,.webp,.avif";
@@ -301,7 +449,6 @@ function ComingSoonPanel({ platform, accentColor }: { platform: string; accentCo
 
 // ── Modal shell ───────────────────────────────────────────────────────────────
 
-type Tab = "upload" | "url";
 
 export function ChannelModal({ config, brandId, brandName, campaignId, campaignName, onClose }: Props) {
   const [tab, setTab] = useState<Tab>("upload");
@@ -317,8 +464,9 @@ export function ChannelModal({ config, brandId, brandName, campaignId, campaignN
   if (typeof document === "undefined") return null;
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode; disabled?: boolean }[] = [
-    { id: "upload", label: "Upload File", icon: <UploadCloud size={13} /> },
-    { id: "url",    label: "Import URL",  icon: <Link2 size={13} />, disabled: true },
+    { id: "upload",  label: "Upload File",  icon: <UploadCloud size={13} /> },
+    { id: "url",     label: "Import URL",   icon: <Link2 size={13} />, disabled: true },
+    { id: "library", label: "From Library", icon: <LibraryBig size={13} /> },
   ];
 
   return createPortal(
@@ -409,6 +557,15 @@ export function ChannelModal({ config, brandId, brandName, campaignId, campaignN
           )}
           {tab === "url" && (
             <ComingSoonPanel platform={config.label} accentColor={config.accentColor} />
+          )}
+          {tab === "library" && (
+            <LibraryPanel
+              brandId={brandId}
+              campaignId={campaignId}
+              platform={config.platform}
+              accentColor={config.accentColor}
+              onSuccess={onSuccess}
+            />
           )}
         </div>
       </div>
