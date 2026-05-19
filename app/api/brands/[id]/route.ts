@@ -93,10 +93,15 @@ export async function PATCH(
   try { supabase = getSupabase(); }
   catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
 
-  const { data, error } = await supabase
+  // Use an untyped client for the update to avoid Supabase generic inference issues
+  // where the typed Update slot resolves to `never`.
+  const { data, error } = await createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false } }
+  )
     .from("brands")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update(updates as any)
+    .update(updates)
     .eq("id", id)
     .select("id, name, website_url, logo_url, created_at")
     .single();

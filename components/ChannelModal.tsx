@@ -450,7 +450,7 @@ function ComingSoonPanel({ platform, accentColor }: { platform: string; accentCo
 // ── Modal shell ───────────────────────────────────────────────────────────────
 
 
-export function ChannelModal({ config, brandId, brandName, campaignId, campaignName, onClose }: Props) {
+export function ChannelModal({ config, brandId, brandName, campaignId, campaignName, onClose, onSuccess }: Props) {
   const [tab, setTab] = useState<Tab>("upload");
 
   useEffect(() => {
