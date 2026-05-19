@@ -10,20 +10,20 @@
  * full server round-trip.
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Creative } from "@/types";
 import { CreativeCard } from "./CreativeCard";
 import type { EditCreativePayload } from "./EditCreativeModal";
 
 interface Props {
   items: { creative: Creative; brandLogoUrl: string | null }[];
-  /** ID of the current hero creative — if set, shows crown UI on all cards */
   heroCreativeId?: string | null;
-  /** Called when the crown button is toggled on a card */
   onToggleHero?: (id: string) => void;
+  /** Optional extra slot appended after all cards (e.g. an Add creative tile) */
+  appendSlot?: ReactNode;
 }
 
-export function CreativeGrid({ items, heroCreativeId, onToggleHero }: Props) {
+export function CreativeGrid({ items, heroCreativeId, onToggleHero, appendSlot }: Props) {
   const [list, setList] = useState(items);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
 
@@ -93,6 +93,7 @@ export function CreativeGrid({ items, heroCreativeId, onToggleHero }: Props) {
           />
         </div>
       ))}
+      {appendSlot}
     </div>
   );
 }
