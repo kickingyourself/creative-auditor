@@ -29,6 +29,7 @@ interface CreativeRow {
   thumbnail_url: string | null;
   view_count: number | null;
   engagement_rate: number | null;
+  posted_at: string | null;
   created_at: string;
   brands: { name: string; logo_url: string | null } | null;
   campaigns: { name: string } | null;
@@ -76,7 +77,7 @@ function toCreative(row: CreativeRow): { creative: Creative; brandLogoUrl: strin
       comments:         null,
       engagement_rate:  row.engagement_rate,
       duration_seconds: null,
-      published_at:     row.created_at,
+      published_at:     row.posted_at ?? row.created_at,
       ad_type:          rawPlatform === "landing_page" || rawPlatform === "pinterest" ? "image" : "video",
       status:           "active",
       created_at:       row.created_at,
@@ -98,7 +99,7 @@ export default async function CreativesPage() {
     // Fetch ALL creatives — no limit
     const { data: rows, error } = await supabase
       .from("creatives")
-      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns!campaign_id(name)")
+      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, posted_at, created_at, brands(name, logo_url), campaigns!campaign_id(name)")
       .order("created_at", { ascending: false });
 
     if (error) throw error;

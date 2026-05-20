@@ -319,6 +319,7 @@ export async function POST(request: Request): Promise<Response> {
       source_url:      sourceUrl,
       title:           title,
       thumbnail_url:   thumbnailUrl,
+      posted_at:       video.snippet.publishedAt ?? null,
       view_count:      viewCount,
       engagement_rate: engagementRate,
     };
