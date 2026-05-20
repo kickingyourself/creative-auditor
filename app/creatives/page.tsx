@@ -99,7 +99,7 @@ export default async function CreativesPage() {
     // Fetch ALL creatives — no limit
     const { data: rows, error } = await supabase
       .from("creatives")
-      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, posted_at, created_at, brands(name, logo_url), campaigns!campaign_id(name)")
+      .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns!campaign_id(name)")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
