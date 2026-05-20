@@ -383,7 +383,7 @@ export function YouTubeModal({ brandId, brandName, campaignId, campaignName, onC
 
         {/* Content */}
         <div style={{ padding: 22, animation: "fadeInUp 0.18s ease both" }} key={tab}>
-          {tab === "ingest"  && <YouTubeIngestForm brandId={brandId} brandName={brandName} />}
+          {tab === "ingest"  && <YouTubeIngestForm brandId={brandId} brandName={brandName} campaignId={campaignId} campaignName={campaignName ?? undefined} />}
           {tab === "upload"  && <UploadPanel brandId={brandId} campaignId={campaignId} />}
           {tab === "library" && <LibraryPanel brandId={brandId} campaignId={campaignId} onSuccess={onSuccess} />}
         </div>

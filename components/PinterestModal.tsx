@@ -394,7 +394,7 @@ export function PinterestModal({ brandId, brandName, campaignId, campaignName, o
 
         {/* Content */}
         <div style={{ padding: 22, animation: "fadeInUp 0.18s ease both" }} key={tab}>
-          {tab === "url"     && <PinterestIngestForm brandId={brandId} brandName={brandName} />}
+          {tab === "url"     && <PinterestIngestForm brandId={brandId} brandName={brandName} campaignId={campaignId} campaignName={campaignName ?? undefined} />}
           {tab === "upload"  && <UploadPanel brandId={brandId} campaignId={campaignId} />}
           {tab === "library" && <LibraryPanel brandId={brandId} campaignId={campaignId} onSuccess={onSuccess} />}
         </div>

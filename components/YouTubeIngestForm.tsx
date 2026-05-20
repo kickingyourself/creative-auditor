@@ -206,18 +206,25 @@ function ErrorBanner({ code, message, detail }: { code: string; message: string;
 interface YouTubeIngestFormProps {
   brandId: string;
   brandName?: string;
+  /** When opened from a campaign page, pre-locks the campaign so all ingests are auto-tagged. */
+  campaignId?: string | null;
+  campaignName?: string | null;
 }
 
-export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps) {
-  // Single video state
+export function YouTubeIngestForm({ brandId, brandName, campaignId, campaignName }: YouTubeIngestFormProps) {
+  // Single video state — seed with locked campaign if provided
   const [videoUrl, setVideoUrl]                 = useState("");
-  const [singleCampaign, setSingleCampaign]     = useState<CampaignOption | null>(null);
+  const [singleCampaign, setSingleCampaign]     = useState<CampaignOption | null>(
+    campaignId ? { id: campaignId, name: campaignName ?? "" } : null
+  );
   const [singleResult, setSingleResult]         = useState<SingleResult>(null);
   const [singlePending, startSingleTransition]  = useTransition();
 
-  // Channel sync state
+  // Channel sync state — seed with locked campaign if provided
   const [channelUrl, setChannelUrl]             = useState("");
-  const [channelCampaign, setChannelCampaign]   = useState<CampaignOption | null>(null);
+  const [channelCampaign, setChannelCampaign]   = useState<CampaignOption | null>(
+    campaignId ? { id: campaignId, name: campaignName ?? "" } : null
+  );
   const [channelResult, setChannelResult]       = useState<ChannelResult>(null);
   const [channelPending, startChannelTransition] = useTransition();
 
@@ -247,10 +254,11 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
           }),
         });
         const json = await res.json();
-        if (res.ok) {
+    if (res.ok) {
           setSingleResult({ status: "success", ...json });
           setVideoUrl("");
-          setSingleCampaign(null);
+          // Only reset campaign if it wasn't locked from outside
+          if (!campaignId) setSingleCampaign(null);
         } else {
           setSingleResult({ status: "error", ...json });
         }
@@ -285,7 +293,8 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
         if (res.ok) {
           setChannelResult({ status: "success", ...json });
           setChannelUrl("");
-          setChannelCampaign(null);
+          // Only reset campaign if it wasn't locked from outside
+          if (!campaignId) setChannelCampaign(null);
         } else {
           setChannelResult({ status: "error", ...json });
         }
@@ -359,16 +368,24 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
           />
         </div>
 
+        {/* Campaign — hidden/locked when opened from campaign builder */}
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <FieldLabel htmlFor={`yt-scampaign-${brandId}`}>
-            Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
+            Campaign {!campaignId && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>}
           </FieldLabel>
-          <CampaignPicker
-            brandId={brandId}
-            instanceId={`yt-single-${brandId}`}
-            disabled={anyPending}
-            onChange={setSingleCampaign}
-          />
+          {campaignId ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(255,68,68,0.08)", border: "1px solid rgba(255,68,68,0.2)", borderRadius: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#ff4444" }}>🎯 Auto-tagged:</span>
+              <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontWeight: 600 }}>{campaignName ?? campaignId}</span>
+            </div>
+          ) : (
+            <CampaignPicker
+              brandId={brandId}
+              instanceId={`yt-single-${brandId}`}
+              disabled={anyPending}
+              onChange={setSingleCampaign}
+            />
+          )}
         </div>
 
         <button
@@ -475,16 +492,24 @@ export function YouTubeIngestForm({ brandId, brandName }: YouTubeIngestFormProps
           </p>
         </div>
 
+        {/* Campaign — hidden/locked when opened from campaign builder */}
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <FieldLabel htmlFor={`yt-ch-campaign-${brandId}`}>
-            Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
+            Campaign {!campaignId && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>}
           </FieldLabel>
-          <CampaignPicker
-            brandId={brandId}
-            instanceId={`yt-channel-${brandId}`}
-            disabled={anyPending}
-            onChange={setChannelCampaign}
-          />
+          {campaignId ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(255,68,68,0.08)", border: "1px solid rgba(255,68,68,0.2)", borderRadius: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#ff4444" }}>🎯 Auto-tagged:</span>
+              <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontWeight: 600 }}>{campaignName ?? campaignId}</span>
+            </div>
+          ) : (
+            <CampaignPicker
+              brandId={brandId}
+              instanceId={`yt-channel-${brandId}`}
+              disabled={anyPending}
+              onChange={setChannelCampaign}
+            />
+          )}
         </div>
 
         <button
