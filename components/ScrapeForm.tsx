@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect } from "react";
 import { scrapeHomepage, ScrapeState } from "@/actions/scrape-homepage";
 import {
   Globe,
@@ -19,14 +19,24 @@ interface ScrapeFormProps {
   /** Pre-bound brand_id so the form doesn't need a visible input for it */
   brandId: string;
   brandName?: string;
+  /** Pre-bound campaign UUID — skips the CampaignPicker when supplied */
+  campaignId?: string | null;
+  /** Called after a successful scrape so parent can refresh / close */
+  onSuccess?: () => void;
 }
 
-export function ScrapeForm({ brandId, brandName }: ScrapeFormProps) {
+export function ScrapeForm({ brandId, brandName, campaignId: externalCampaignId, onSuccess }: ScrapeFormProps) {
   const [state, formAction, pending] = useActionState(
     scrapeHomepage,
     initialState
   );
   const [campaign, setCampaign] = useState<CampaignOption | null>(null);
+
+  // Fire onSuccess when a scrape completes successfully
+  useEffect(() => {
+    if (state.status === "success") onSuccess?.();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
 
   return (
     <div
@@ -137,31 +147,34 @@ export function ScrapeForm({ brandId, brandName }: ScrapeFormProps) {
           </div>
         </div>
 
-        {/* Optional campaign — resolved to UUID via picker */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <label
-            style={{
-              fontSize: "12px",
-              fontWeight: 600,
-              color: "var(--color-text-secondary)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
-          >
-            Campaign{" "}
-            <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>
-              (optional)
-            </span>
-          </label>
-          {/* Hidden input carries the resolved UUID to the server action */}
-          <input type="hidden" name="campaign_id" value={campaign?.id ?? ""} />
-          <CampaignPicker
-            brandId={brandId}
-            instanceId={`scrape-${brandId}`}
-            disabled={pending}
-            onChange={setCampaign}
-          />
-        </div>
+        {/* Campaign — hidden if pre-bound externally, picker if not */}
+        {externalCampaignId != null ? (
+          <input type="hidden" name="campaign_id" value={externalCampaignId} />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "var(--color-text-secondary)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              Campaign{" "}
+              <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>
+                (optional)
+              </span>
+            </label>
+            <input type="hidden" name="campaign_id" value={campaign?.id ?? ""} />
+            <CampaignPicker
+              brandId={brandId}
+              instanceId={`scrape-${brandId}`}
+              disabled={pending}
+              onChange={setCampaign}
+            />
+          </div>
+        )}
 
         {/* Submit */}
         <button

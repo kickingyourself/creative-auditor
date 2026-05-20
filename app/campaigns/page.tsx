@@ -8,7 +8,8 @@
 import type { Metadata } from "next";
 import { createServerClient } from "@/utils/supabase/server";
 import { CampaignTable, type CampaignRow } from "@/components/CampaignTable";
-import { Layers } from "lucide-react";
+import { Layers, Plus } from "lucide-react";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Campaigns | Creative Audit",
@@ -61,15 +62,39 @@ export default async function CampaignsPage() {
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <Layers size={20} color="var(--color-accent)" />
-          <h1 style={{
-            fontSize: 22, fontWeight: 700,
-            color: "var(--color-text-primary)",
-            letterSpacing: "-0.025em",
-          }}>
-            Campaigns
-          </h1>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Layers size={20} color="var(--color-accent)" />
+            <h1 style={{
+              fontSize: 22, fontWeight: 700,
+              color: "var(--color-text-primary)",
+              letterSpacing: "-0.025em",
+            }}>
+              Campaigns
+            </h1>
+          </div>
+
+          <Link
+            href="/campaigns/new"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "9px 18px",
+              borderRadius: 10,
+              background: "linear-gradient(135deg, var(--color-accent), #22d3a0)",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: "0.01em",
+              textDecoration: "none",
+              boxShadow: "0 2px 12px rgba(79,179,186,0.3)",
+              transition: "opacity 150ms ease",
+            }}
+          >
+            <Plus size={14} strokeWidth={2.5} />
+            Build Campaign
+          </Link>
         </div>
         <p style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
           {error

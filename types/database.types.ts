@@ -95,6 +95,12 @@ export interface CreativeRow {
    * Nullable if not yet computed.
    */
   engagement_rate: number | null;
+  /**
+   * When the asset was originally published on its source platform
+   * (e.g. YouTube video publishedAt, Pinterest pin date).
+   * NULL for uploaded assets that have no platform-posted date.
+   */
+  posted_at: string | null;
   /** ISO-8601 timestamp of record creation (with timezone). */
   created_at: string;
 }
@@ -135,6 +141,8 @@ export interface CreativeInsert {
   thumbnail_url?: string | null;
   view_count?: number | null;
   engagement_rate?: number | null;
+  /** ISO-8601 timestamp (or date string) of when the asset was posted on its platform. Optional; leave unset for uploads. */
+  posted_at?: string | null;
   created_at?: string;
 }
 

@@ -93,6 +93,8 @@ export async function DELETE(
   const { revalidatePath } = await import("next/cache");
   revalidatePath("/");
   revalidatePath("/brands");
+  revalidatePath("/creatives");
+  revalidatePath("/campaigns");
 
   return Response.json({ deleted: true, id });
 }
@@ -163,10 +165,9 @@ export async function PATCH(
   if (created_at  !== undefined) patch.created_at  = created_at;
   if (campaign_id !== undefined) patch.campaign_id = campaign_id;
   if (platform !== undefined) {
-    // DB enum uses 'homepage'; app layer normalises to 'landing_page' on read.
-    // Until ALTER TYPE platform_type ADD VALUE 'landing_page' is run, map it here.
-    const dbPlatform = platform === "landing_page" ? "homepage" : platform;
-    (patch as Record<string, unknown>).platform = dbPlatform;
+    // Migration 005 renamed 'homepage' → 'landing_page' in the DB enum.
+    // Write the value as-is; normalise legacy reads elsewhere.
+    (patch as Record<string, unknown>).platform = platform;
   }
 
   // If brand_id changes, clear campaign_id to avoid cross-brand trigger violation
@@ -193,6 +194,8 @@ export async function PATCH(
   const { revalidatePath } = await import("next/cache");
   revalidatePath("/");
   revalidatePath("/brands");
+  revalidatePath("/creatives");
+  revalidatePath("/campaigns");
 
   return Response.json({ updated: true, id });
 }

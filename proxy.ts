@@ -36,9 +36,16 @@ export function proxy(request: NextRequest) {
 
   // ── 2. Check auth cookie ─────────────────────────────────────────────────────
   const authToken = process.env.SITE_AUTH_TOKEN;
+
+  // No auth token configured → running locally without the password gate.
+  // Skip the check entirely so local dev doesn't require login.
+  if (!authToken) {
+    return NextResponse.next();
+  }
+
   const cookie = request.cookies.get("site_auth");
 
-  if (!authToken || !cookie || cookie.value !== authToken) {
+  if (!cookie || cookie.value !== authToken) {
     const loginUrl = new URL("/login", request.url);
     // Preserve the intended destination for post-login redirect
     if (pathname !== "/") {

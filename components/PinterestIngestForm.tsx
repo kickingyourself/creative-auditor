@@ -159,20 +159,30 @@ const STATUS_LABEL: Record<ProfilePinResult["status"], string> = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-interface Props { brandId: string; brandName?: string; }
+interface Props {
+  brandId: string;
+  brandName?: string;
+  /** When opened from a campaign page, pre-locks the campaign so all ingests are auto-tagged. */
+  campaignId?: string | null;
+  campaignName?: string | null;
+}
 
 const PINTEREST_RED = "#e60023";
 
-export function PinterestIngestForm({ brandId, brandName }: Props) {
-  // Single pin state
+export function PinterestIngestForm({ brandId, brandName, campaignId, campaignName }: Props) {
+  // Single pin state — seed with locked campaign if provided
   const [pinUrl, setPinUrl]               = useState("");
-  const [singleCampaign, setSingleCampaign] = useState<CampaignOption | null>(null);
+  const [singleCampaign, setSingleCampaign] = useState<CampaignOption | null>(
+    campaignId ? { id: campaignId, name: campaignName ?? "" } : null
+  );
   const [singleResult, setSingleResult]   = useState<SingleResult>(null);
   const [singlePending, startSingleTransition] = useTransition();
 
-  // Bulk profile state
+  // Bulk profile state — seed with locked campaign if provided
   const [profileUrl, setProfileUrl]           = useState("");
-  const [profileCampaign, setProfileCampaign] = useState<CampaignOption | null>(null);
+  const [profileCampaign, setProfileCampaign] = useState<CampaignOption | null>(
+    campaignId ? { id: campaignId, name: campaignName ?? "" } : null
+  );
   const [profileResult, setProfileResult]     = useState<ProfileResult>(null);
   const [profilePending, startProfileTransition] = useTransition();
 
@@ -198,7 +208,7 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
           ? { status: "success", ...json }
           : { status: "error",   ...json }
         );
-        if (res.ok) { setPinUrl(""); setSingleCampaign(null); }
+        if (res.ok) { setPinUrl(""); if (!campaignId) setSingleCampaign(null); }
       } catch (err) {
         setSingleResult({
           status: "error", code: "NETWORK_ERROR",
@@ -229,7 +239,7 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
         if (res.ok) {
           setProfileResult({ status: "success", ...json });
           setProfileUrl("");
-          setProfileCampaign(null);
+          if (!campaignId) setProfileCampaign(null);
         } else {
           setProfileResult({ status: "error", ...json });
         }
@@ -290,16 +300,24 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
           </p>
         </div>
 
+        {/* Campaign — hidden/locked when opened from campaign builder */}
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <FieldLabel htmlFor={`pin-campaign-${brandId}`}>
-            Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
+            Campaign {!campaignId && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>}
           </FieldLabel>
-          <CampaignPicker
-            brandId={brandId}
-            instanceId={`pinterest-single-${brandId}`}
-            disabled={anyPending}
-            onChange={setSingleCampaign}
-          />
+          {campaignId ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(230,0,35,0.08)", border: "1px solid rgba(230,0,35,0.2)", borderRadius: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: PINTEREST_RED }}>🎯 Auto-tagged:</span>
+              <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontWeight: 600 }}>{campaignName ?? campaignId}</span>
+            </div>
+          ) : (
+            <CampaignPicker
+              brandId={brandId}
+              instanceId={`pinterest-single-${brandId}`}
+              disabled={anyPending}
+              onChange={setSingleCampaign}
+            />
+          )}
         </div>
 
         <button
@@ -418,16 +436,24 @@ export function PinterestIngestForm({ brandId, brandName }: Props) {
           </p>
         </div>
 
+        {/* Campaign — hidden/locked when opened from campaign builder */}
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <FieldLabel htmlFor={`pin-profile-campaign-${brandId}`}>
-            Campaign <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>
+            Campaign {!campaignId && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>(optional)</span>}
           </FieldLabel>
-          <CampaignPicker
-            brandId={brandId}
-            instanceId={`pinterest-profile-${brandId}`}
-            disabled={anyPending}
-            onChange={setProfileCampaign}
-          />
+          {campaignId ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(230,0,35,0.08)", border: "1px solid rgba(230,0,35,0.2)", borderRadius: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: PINTEREST_RED }}>🎯 Auto-tagged:</span>
+              <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontWeight: 600 }}>{campaignName ?? campaignId}</span>
+            </div>
+          ) : (
+            <CampaignPicker
+              brandId={brandId}
+              instanceId={`pinterest-profile-${brandId}`}
+              disabled={anyPending}
+              onChange={setProfileCampaign}
+            />
+          )}
         </div>
 
         <button

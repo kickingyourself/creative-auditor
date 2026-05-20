@@ -228,6 +228,7 @@ export async function POST(request: Request): Promise<Response> {
     source_url: `https://www.youtube.com/watch?v=${videoId}`, // normalize
     title: snippet.title,
     thumbnail_url: pickThumbnail(snippet.thumbnails),
+    posted_at: snippet.publishedAt ?? null,
     view_count: statistics.viewCount ? parseInt(statistics.viewCount, 10) : null,
     engagement_rate: computeEngagementRate(
       statistics.viewCount,

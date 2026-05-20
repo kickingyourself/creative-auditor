@@ -57,7 +57,7 @@ function toCreative(row: DbRow): { creative: Creative; brandLogoUrl: string | nu
       video_url: rawPlatform === "youtube" ? row.source_url : null,
       views: row.view_count, likes: null, comments: null,
       engagement_rate: row.engagement_rate,
-      duration_seconds: null, published_at: row.created_at,
+      duration_seconds: null, published_at: (row as { posted_at?: string | null }).posted_at ?? row.created_at,
       ad_type: rawPlatform === "landing_page" || rawPlatform === "pinterest" ? "image" : "video",
       status: "active", created_at: row.created_at, updated_at: row.created_at,
     },
