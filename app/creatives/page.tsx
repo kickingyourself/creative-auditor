@@ -8,7 +8,7 @@
 import type { Metadata } from "next";
 import { createServerClient } from "@/utils/supabase/server";
 import { Creative } from "@/types";
-import { CreativeGrid } from "@/components/CreativeGrid";
+import { FilteredCreativeGrid } from "@/components/FilteredCreativeGrid";
 
 export const metadata: Metadata = {
   title: "Creatives — Creative Audit",
@@ -141,25 +141,9 @@ export default async function CreativesPage() {
         </div>
       )}
 
-      {/* Full grid */}
+      {/* Full grid with inline filter bar */}
       {mapped.length > 0 ? (
-        <>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: "18px",
-          }}>
-            <h2 style={{
-              fontSize: "16px", fontWeight: 700,
-              color: "var(--color-text-primary)", letterSpacing: "-0.02em",
-            }}>
-              All Creatives
-            </h2>
-            <span style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>
-              {mapped.length} total
-            </span>
-          </div>
-          <CreativeGrid items={mapped} />
-        </>
+        <FilteredCreativeGrid allItems={mapped} />
       ) : !dbError && (
         <div style={{
           padding: "60px 24px", textAlign: "center",

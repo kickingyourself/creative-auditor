@@ -6,14 +6,11 @@
  */
 
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { createServerClient } from "@/utils/supabase/server";
 import { Creative } from "@/types";
-import { CreativeGrid } from "@/components/CreativeGrid";
 import { StatCards } from "@/components/StatCards";
 import type { StatCardsData } from "@/components/StatCards";
-import { CampaignSummaryGrid } from "@/components/CampaignSummaryGrid";
+import { DashboardFilterSection } from "@/components/DashboardFilterSection";
 import type { CampaignSummary } from "@/components/CampaignSummaryGrid";
 
 export const metadata: Metadata = {
@@ -253,64 +250,12 @@ export default async function DashboardPage() {
       {/* Live stat cards */}
       <StatCards data={statsData} />
 
-      {/* Brand + Campaign overview */}
-      <CampaignSummaryGrid summaries={summaries} />
-
-      {/* Section header */}
-      <div style={{
-        display: "flex", alignItems: "center",
-        justifyContent: "space-between", marginBottom: "18px",
-      }}>
-        <div>
-          <h2 style={{
-            fontSize: "16px", fontWeight: 700,
-            color: "var(--color-text-primary)", letterSpacing: "-0.02em",
-          }}>
-            Recent Creatives
-          </h2>
-          <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
-            {mapped.length > 0
-              ? `Showing ${mapped.length} most recently ingested`
-              : "No creatives ingested yet — head to Brands to get started"}
-          </p>
-        </div>
-        <Link
-          href="/brands"
-          id="btn-view-all-creatives"
-          style={{
-            display: "flex", alignItems: "center", gap: "6px",
-            padding: "8px 16px", borderRadius: "8px",
-            border: "1px solid var(--color-border)",
-            background: "transparent",
-            color: "var(--color-text-secondary)",
-            fontSize: "13px", fontWeight: 500,
-            cursor: "pointer", textDecoration: "none",
-            transition: "all 150ms ease",
-          }}
-        >
-          Go to Brands
-          <ArrowUpRight size={14} />
-        </Link>
-      </div>
-
-      {/* Empty state */}
-      {mapped.length === 0 && !dbError && (
-        <div style={{
-          padding: "60px 24px", textAlign: "center",
-          border: "1px dashed var(--color-border)", borderRadius: "16px",
-        }}>
-          <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "8px" }}>
-            No creatives yet
-          </p>
-          <p style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
-            Use the <strong>Brands</strong> page to capture homepage screenshots or ingest YouTube videos.
-          </p>
-        </div>
-      )}
-
-      {/* Creatives grid */}
-      {mapped.length > 0 && (
-        <CreativeGrid items={mapped} />
+      {/* Brand + Campaign overview + Recent Creatives — with shared filter bar */}
+      {!dbError && (
+        <DashboardFilterSection
+          summaries={summaries}
+          recentItems={mapped}
+        />
       )}
     </div>
   );
