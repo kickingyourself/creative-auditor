@@ -37,37 +37,47 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   const supabase = getSupabase();
-  const pattern = `%${q}%`;
+  // .ilike() method uses SQL % wildcards; .or() strings use PostgREST * wildcards
+  const sqlPattern  = `%${q}%`;   // for standalone .ilike() calls
+  const restPattern = `*${q}*`;   // for inline .or() filter strings
 
   const [creativesRes, campaignsRes, brandsRes, snapshotsRes] = await Promise.all([
     // Creatives — search title, platform, ad_type, source_url
     supabase
       .from("creatives")
       .select("id, title, platform, ad_type, thumbnail_url, source_url, brand_id, campaign_id, brands(name), campaigns!campaign_id(name)")
-      .or(`title.ilike.${pattern},platform.ilike.${pattern},ad_type.ilike.${pattern},source_url.ilike.${pattern}`)
+      .or(`title.ilike.${restPattern},platform.ilike.${restPattern},ad_type.ilike.${restPattern},source_url.ilike.${restPattern}`)
+      .order("created_at", { ascending: false })
       .limit(6),
 
     // Campaigns — search name
     supabase
       .from("campaigns")
       .select("id, name, start_date, end_date, brands(name, logo_url)")
-      .ilike("name", pattern)
+      .ilike("name", sqlPattern)
       .limit(5),
 
     // Brands — search name, website_url
     supabase
       .from("brands")
       .select("id, name, logo_url, website_url")
-      .or(`name.ilike.${pattern},website_url.ilike.${pattern}`)
+      .or(`name.ilike.${restPattern},website_url.ilike.${restPattern}`)
       .limit(4),
 
     // Competitive snapshots — search name
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase.from("competitive_snapshots") as any)
       .select("id, name, created_at")
-      .ilike("name", pattern)
+      .ilike("name", sqlPattern)
       .limit(4),
   ]);
+
+  // Log any upstream errors to help debug silently-failing queries
+  if (creativesRes.error)  console.error("[search] creatives:",  creativesRes.error.message);
+  if (campaignsRes.error)  console.error("[search] campaigns:",  campaignsRes.error.message);
+  if (brandsRes.error)     console.error("[search] brands:",     brandsRes.error.message);
+  if (snapshotsRes.error)  console.error("[search] snapshots:",  snapshotsRes.error.message);
+
 
   const results: SearchResult[] = [];
 
