@@ -22,8 +22,9 @@ export interface CampaignSummary {
   campaign_id: string | null;          // null → "Uncategorised"
   campaign_name: string | null;
   creative_count: number;
-  thumbnails: (string | null)[];       // up to 4
+  thumbnails: (string | null)[];       // up to 4 (kept for compatibility)
   platforms: string[];                 // deduplicated list
+  hero_thumbnail: string | null;       // designated hero image, or first thumbnail
 }
 
 interface Props {
@@ -59,7 +60,6 @@ function platformStyle(p: string) {
 // ── Tile ──────────────────────────────────────────────────────────────────────
 
 function SummaryTile({ s }: { s: CampaignSummary }) {
-  const thumbs = [...s.thumbnails, null, null, null, null].slice(0, 4);
   const isUncategorised = s.campaign_id === null;
 
   const card = (
@@ -84,36 +84,27 @@ function SummaryTile({ s }: { s: CampaignSummary }) {
         (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border)";
       }}
     >
-      {/* ── Thumbnail mosaic ── 4 quadrants, absolutely positioned so portrait images can't break the 1:1 shape */}
-      <div style={{ position: "relative", width: "100%", paddingBottom: "100%", flexShrink: 0, overflow: "hidden", background: "var(--color-surface-2)" }}>
-        {thumbs.map((url, i) => (
-          <div
-            key={i}
+      {/* ── Hero image — full-bleed, 16:9 ratio ── */}
+      <div style={{ position: "relative", width: "100%", paddingBottom: "62%", flexShrink: 0, overflow: "hidden", background: "var(--color-surface-2)" }}>
+        {s.hero_thumbnail ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={s.hero_thumbnail}
+            alt=""
             style={{
-              position: "absolute",
-              top:    i < 2 ? 0 : "50%",
-              left:   i % 2 === 0 ? 0 : "50%",
-              width:  "50%",
-              height: "50%",
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "var(--color-surface-2)",
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%",
+              objectFit: "cover", display: "block",
             }}
-          >
-            {url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={url}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-              />
-            ) : (
-              <ImageIcon size={18} color="var(--color-border)" />
-            )}
+          />
+        ) : (
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <ImageIcon size={28} color="var(--color-border)" />
           </div>
-        ))}
+        )}
       </div>
 
       {/* ── Info ── */}

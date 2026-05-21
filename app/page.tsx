@@ -162,7 +162,7 @@ export default async function DashboardPage() {
     // Fetch all creatives with brand + campaign info (no limit) for grouping.
     const { data: allRows } = await supabase
       .from("creatives")
-      .select("brand_id, campaign_id, platform, thumbnail_url, brands(name, logo_url), campaigns!campaign_id(name)")
+      .select("brand_id, campaign_id, platform, thumbnail_url, brands(name, logo_url), campaigns!campaign_id(name, hero_creative_id, hero:hero_creative_id(thumbnail_url))")
       .order("created_at", { ascending: false });
 
     if (allRows) {
@@ -175,25 +175,31 @@ export default async function DashboardPage() {
         platform: string;
         thumbnail_url: string | null;
         brands: { name: string; logo_url: string | null } | null;
-        campaigns: { name: string } | null;
+        campaigns: { name: string; hero_creative_id: string | null; hero: { thumbnail_url: string | null } | null } | null;
       }[]) {
         const key = `${row.brand_id}::${row.campaign_id ?? "__none__"}`;
+        const heroCampaignThumb = row.campaigns?.hero?.thumbnail_url ?? null;
 
         if (!groupMap.has(key)) {
           groupMap.set(key, {
-            brand_id:      row.brand_id,
-            brand_name:    row.brands?.name ?? "Unknown Brand",
+            brand_id:       row.brand_id,
+            brand_name:     row.brands?.name ?? "Unknown Brand",
             brand_logo_url: row.brands?.logo_url ?? null,
-            campaign_id:   row.campaign_id,
-            campaign_name: row.campaigns?.name ?? null,
+            campaign_id:    row.campaign_id,
+            campaign_name:  row.campaigns?.name ?? null,
             creative_count: 0,
-            thumbnails: [],
-            platforms: [],
+            thumbnails:     [],
+            platforms:      [],
+            hero_thumbnail: heroCampaignThumb,
           });
         }
 
         const group = groupMap.get(key)!;
         group.creative_count++;
+        // Keep hero_thumbnail from campaign row if set; update with first real thumb if not
+        if (!group.hero_thumbnail && row.thumbnail_url) {
+          group.hero_thumbnail = row.thumbnail_url;
+        }
         if (group.thumbnails.length < 4 && row.thumbnail_url) {
           group.thumbnails.push(row.thumbnail_url);
         }
