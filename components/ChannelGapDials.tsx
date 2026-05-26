@@ -21,12 +21,13 @@ export interface ChannelDef {
   trackColor?: string;   // unfilled track (defaults to semi-transparent color)
 }
 
+// Ordered: Landing Page → YouTube → Meta → TikTok → Pinterest → Programmatic → OOH → TVC
 export const CHANNEL_DEFS: ChannelDef[] = [
-  { platform: "youtube",      label: "YouTube",      max: 20, color: "#ff4444" },
-  { platform: "pinterest",    label: "Pinterest",    max: 20, color: "#e60023" },
-  { platform: "tiktok",       label: "TikTok",       max: 20, color: "#69c9d0" },
   { platform: "landing_page", label: "Landing Page", max: 3,  color: "#22d3a0" },
+  { platform: "youtube",      label: "YouTube",      max: 20, color: "#ff4444" },
   { platform: "meta",         label: "Meta",         max: 20, color: "#1877f2" },
+  { platform: "tiktok",       label: "TikTok",       max: 20, color: "#69c9d0" },
+  { platform: "pinterest",    label: "Pinterest",    max: 20, color: "#e60023" },
   { platform: "programmatic", label: "Programmatic", max: 20, color: "#f59e0b" },
   { platform: "ooh",          label: "OOH",          max: 20, color: "#06b6d4" },
   { platform: "tvc",          label: "TVC",          max: 20, color: "#8b5cf6" },
@@ -34,26 +35,24 @@ export const CHANNEL_DEFS: ChannelDef[] = [
 
 // ── Single dial ───────────────────────────────────────────────────────────────
 
-const SIZE    = 72;   // viewBox & rendered width/height (px)
+const SIZE    = 64;   // slightly smaller for condensed vertical space
 const CX      = SIZE / 2;
 const CY      = SIZE / 2;
-const RADIUS  = 27;
+const RADIUS  = 24;
 const STROKE  = 5;
-const CIRC    = 2 * Math.PI * RADIUS;       // full circumference
-const ARC_DEG = 270;                         // degrees the gauge spans
-const ARC_LEN = CIRC * (ARC_DEG / 360);     // arc length of the track
-const GAP_LEN = CIRC - ARC_LEN;             // gap at the bottom
-const START_ROTATION = 135;                  // rotate so gap is centred at bottom
+const CIRC    = 2 * Math.PI * RADIUS;
+const ARC_DEG = 270;
+const ARC_LEN = CIRC * (ARC_DEG / 360);
+const GAP_LEN = CIRC - ARC_LEN;
+const START_ROTATION = 135;
 
 function Dial({ def, count }: { def: ChannelDef; count: number }) {
   const raw = Math.min(count / def.max, 1);       // 0–1, capped at 1
-  const pct = Math.round(raw * 100);
 
   // progress arc length
   const filled = raw * ARC_LEN;
 
   // position of the dot at the progress end
-  // angle in SVG space: rotate(135) + raw*270 degrees, then add 135° offset
   const angleDeg = START_ROTATION + raw * ARC_DEG;
   const angleRad = (angleDeg * Math.PI) / 180;
   const dotX = CX + RADIUS * Math.cos(angleRad);
@@ -62,12 +61,16 @@ function Dial({ def, count }: { def: ChannelDef; count: number }) {
   const trackOpacity = 0.15;
   const isComplete   = raw >= 1;
 
+  // Font size for the count number (shrink for larger numbers)
+  const countStr  = String(count);
+  const countSize = countStr.length >= 3 ? 10 : countStr.length === 2 ? 12 : 14;
+
   return (
     <div style={{
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      gap: 4,
+      gap: 3,
       flexShrink: 0,
     }}>
       {/* SVG gauge */}
@@ -75,7 +78,7 @@ function Dial({ def, count }: { def: ChannelDef; count: number }) {
         width={SIZE}
         height={SIZE}
         viewBox={`0 0 ${SIZE} ${SIZE}`}
-        aria-label={`${def.label}: ${pct}%`}
+        aria-label={`${def.label}: ${count} assets`}
       >
         {/* Track (unfilled) */}
         <circle
@@ -106,23 +109,23 @@ function Dial({ def, count }: { def: ChannelDef; count: number }) {
         {/* Progress dot */}
         {filled > 0 && (
           <circle
-            cx={dotX} cy={dotY} r={3.5}
+            cx={dotX} cy={dotY} r={3}
             fill={def.color}
             style={{ filter: `drop-shadow(0 0 3px ${def.color})` }}
           />
         )}
 
-        {/* Percentage text */}
+        {/* Asset count in centre (replaces percentage) */}
         <text
           x={CX}
           y={CY + 5}
           textAnchor="middle"
-          fill={pct > 0 ? "var(--color-text-primary)" : "var(--color-text-muted)"}
-          fontSize={pct === 100 ? 11 : 13}
+          fill={count > 0 ? "var(--color-text-primary)" : "var(--color-text-muted)"}
+          fontSize={countSize}
           fontWeight={700}
           fontFamily="inherit"
         >
-          {pct}%
+          {count}
         </text>
 
         {/* Subtle completion ring glow */}
@@ -137,7 +140,7 @@ function Dial({ def, count }: { def: ChannelDef; count: number }) {
         )}
       </svg>
 
-      {/* Label */}
+      {/* Channel label only — no x/x count below */}
       <span style={{
         fontSize: 10,
         fontWeight: 600,
@@ -147,15 +150,6 @@ function Dial({ def, count }: { def: ChannelDef; count: number }) {
         whiteSpace: "nowrap",
       }}>
         {def.label}
-      </span>
-
-      {/* Count / max */}
-      <span style={{
-        fontSize: 10,
-        color: "var(--color-text-muted)",
-        fontVariantNumeric: "tabular-nums",
-      }}>
-        {count}<span style={{ opacity: 0.5 }}>/{def.max}</span>
       </span>
     </div>
   );
@@ -183,15 +177,15 @@ export function ChannelGapDials({ platformCounts }: Props) {
       background: "var(--color-surface)",
       border: "1px solid var(--color-border)",
       borderRadius: 14,
-      padding: "16px 20px",
-      marginBottom: 24,
+      padding: "12px 20px",
+      marginBottom: 20,
     }}>
       {/* Section label */}
       <div style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        marginBottom: 14,
+        marginBottom: 10,
       }}>
         <span style={{
           fontSize: 11,
@@ -212,7 +206,7 @@ export function ChannelGapDials({ platformCounts }: Props) {
         display: "flex",
         gap: 8,
         overflowX: "auto",
-        paddingBottom: 4,   // room for scrollbar
+        paddingBottom: 4,
       }}>
         {CHANNEL_DEFS.map((def) => (
           <Dial
