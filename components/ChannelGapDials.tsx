@@ -128,16 +128,6 @@ function Dial({ def, count }: { def: ChannelDef; count: number }) {
           {count}
         </text>
 
-        {/* Subtle completion ring glow */}
-        {isComplete && (
-          <circle
-            cx={CX} cy={CY} r={RADIUS + 3}
-            fill="none"
-            stroke={def.color}
-            strokeOpacity={0.12}
-            strokeWidth={2}
-          />
-        )}
       </svg>
 
       {/* Channel label only — no x/x count below */}
