@@ -7,7 +7,7 @@
  * Layout: Campaign info → Hero → Landing Page → YouTube → Meta → TikTok → Pinterest → …
  */
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, useMemo, use } from "react";
 import Link from "next/link";
 import {
   Layers, ChevronRight, Pencil, Check, X, Loader2, AlertCircle, RefreshCw, LayoutGrid, Music2,
@@ -18,6 +18,7 @@ import { ChannelModal, type ChannelConfig } from "@/components/ChannelModal";
 import { PinterestModal }      from "@/components/PinterestModal";
 import { ProgrammaticModal }   from "@/components/ProgrammaticModal";
 import { CampaignChannelSections } from "@/components/CampaignChannelSections";
+import { ChannelGapDials }          from "@/components/ChannelGapDials";
 import type { Creative } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ interface ChannelItem { creative: Creative; brandLogoUrl: string | null; }
 interface ChannelGroup { key: string; label: string; items: ChannelItem[]; }
 interface CampaignData {
   id: string; name: string; start_date?: string | null;
+  hero_creative_id?: string | null;
   brand: { id: string; name: string; logo_url: string | null } | null;
 }
 
@@ -124,6 +126,7 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
   const [campaign, setCampaign]     = useState<CampaignData | null>(null);
   const [channels, setChannels]     = useState<ChannelGroup[]>([]);
   const [allItems, setAllItems]     = useState<ChannelItem[]>([]);
+  const [heroCreativeId, setHeroCreativeId] = useState<string | null>(null);
   const [loading, setLoading]       = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [tick, setTick]             = useState(0);
@@ -145,6 +148,7 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
       if (!res.ok) { setFetchError("Failed to load campaign"); return; }
       const data = await res.json();
       setCampaign(data.campaign);
+      setHeroCreativeId(data.campaign.hero_creative_id ?? null);
       setChannels(data.channels ?? []);
       setAllItems((data.channels ?? []).flatMap((ch: ChannelGroup) => ch.items));
       setFetchError(null);
@@ -161,6 +165,18 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
   }, []);
 
   function refresh() { setTick(Date.now()); }
+
+  // Derive platform counts from this campaign's creatives (for the gap dials).
+  // Must be here — before any early returns — to satisfy Rules of Hooks.
+  const platformCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const { creative } of allItems) {
+      const raw = creative.platform as string;
+      const p = raw === "homepage" ? "landing_page" : raw;
+      counts[p] = (counts[p] ?? 0) + 1;
+    }
+    return counts;
+  }, [allItems]);
 
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300, gap: 10 }}>
@@ -219,7 +235,10 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
       {/* 1. Campaign information */}
       <EditableHeader campaign={campaign} onSaved={upd => setCampaign(c => c ? { ...c, ...upd } : c)} />
 
-      {/* 2. Hero → 3. Landing Page → 4. YouTube → 5. Meta → … */}
+      {/* 2. Channel gap analysis */}
+      <ChannelGapDials platformCounts={platformCounts} />
+
+      {/* 3. Hero → Landing Page → YouTube → Meta → … */}
       {allItems.length === 0 ? (
         <div style={{ padding: "14px 18px", background: "rgba(79,179,186,0.06)", border: "1px solid rgba(79,179,186,0.15)", borderRadius: 10, display: "flex", alignItems: "center", gap: 8, marginBottom: 32 }}>
           <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Campaign created — click a channel below to start adding creatives</span>
@@ -235,7 +254,7 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
         brandId={brandId}
         brandName={brandName}
         brandLogoUrl={campaign.brand?.logo_url ?? null}
-        initialHeroCreativeId={null}
+        initialHeroCreativeId={heroCreativeId}
         onAddCreative={onAddCreative}
       />
 

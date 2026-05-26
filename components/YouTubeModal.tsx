@@ -14,6 +14,7 @@ import {
   Loader2, CheckCircle2, AlertCircle,
   Film, Image as ImageIcon, LibraryBig, Search, Check,
 } from "lucide-react";
+import { captureVideoFrame } from "@/lib/captureVideoFrame";
 import { YouTubeIngestForm } from "@/components/YouTubeIngestForm";
 import type { Creative } from "@/types";
 
@@ -152,7 +153,7 @@ const MAX_MB = 200;
 function uid() { return Math.random().toString(36).slice(2); }
 function fmtBytes(b: number) { return b >= 1048576 ? `${(b/1048576).toFixed(1)} MB` : `${(b/1024).toFixed(0)} KB`; }
 
-function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: string | null }) {
+function UploadPanel({ brandId, campaignId, uploadPlatform = "youtube" }: { brandId: string; campaignId?: string | null; uploadPlatform?: string }) {
   const [queue, setQueue]           = useState<QueuedFile[]>([]);
   const [isDragging, setDragging]   = useState(false);
   const [results, setResults]       = useState<{ status: string; filename: string; error?: string }[] | null>(null);
@@ -182,7 +183,7 @@ function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: st
         prepRes = await fetch("/api/upload/prepare", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            brand_id: brandId, platform: "youtube",
+            brand_id: brandId, platform: uploadPlatform,
             campaign_id: campaignId || undefined,
             published_date: new Date().toISOString().slice(0, 10),
             files: queue.map(q => ({ name: q.file.name, size: q.file.size, type: q.file.type })),
@@ -202,13 +203,43 @@ function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: st
         (prepData.uploads as any[]).map(async (u: any, i: number) => {
           try {
             const r = await fetch(u.signedUrl, { method: "PUT", headers: { "Content-Type": u.contentType }, body: queue[i].file });
-            uploadResults[i] = r.ok ? { ...u, ok: true } : { ...u, ok: false, error: `Upload failed (${r.status})` };
+            if (!r.ok) {
+              let reason = `HTTP ${r.status}`;
+              try { const rb = await r.json(); reason = rb?.message ?? rb?.error ?? reason; } catch { /* ignore */ }
+              if (r.status === 413) reason = "File too large for storage bucket (limit: 500 MB)";
+              uploadResults[i] = { ...u, ok: false, error: reason }; return;
+            }
+
+            // Generate + upload thumbnail for video files
+            let resolvedThumbPath: string | null = null;
+            if (u.contentType?.startsWith("video/") && u.thumbnailSignedUrl && u.thumbnailStoragePath) {
+              try {
+                const thumbBlob = await captureVideoFrame(queue[i].file);
+                if (thumbBlob) {
+                  const tr = await fetch(u.thumbnailSignedUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": "image/jpeg" },
+                    body: thumbBlob,
+                  });
+                  if (tr.ok) resolvedThumbPath = u.thumbnailStoragePath;
+                }
+              } catch { /* thumbnail is best-effort */ }
+            }
+
+            uploadResults[i] = { ...u, ok: true, resolvedThumbPath };
           } catch (err) { uploadResults[i] = { ...u, ok: false, error: err instanceof Error ? err.message : "Failed" }; }
         })
       );
 
       const successes = uploadResults.filter(r => r?.ok);
-      if (!successes.length) { setError("All uploads failed."); return; }
+      if (!successes.length) {
+        const reasons = uploadResults
+          .filter(r => r && !r.ok)
+          .map((r, i) => `${queue[i]?.file?.name ?? r.filename ?? "File"}: ${r.error ?? "unknown error"}`)
+          .join("\n");
+        setError(reasons || "All uploads failed.");
+        return;
+      }
 
       try {
         const reg = await fetch("/api/upload/register", {
@@ -216,10 +247,10 @@ function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: st
           body: JSON.stringify({
             brand_id: prepData.brand_id, brand_name: prepData.brand_name,
             published_date: prepData.published_date,
-            items: successes.map((u: { storagePath: string; contentType: string; originalName: string }) => ({
+            items: successes.map((u: { storagePath: string; contentType: string; originalName: string; resolvedThumbPath?: string | null }) => ({
               storagePath: u.storagePath, contentType: u.contentType,
-              platform: "youtube", campaignId: campaignId ?? null,
-              originalName: u.originalName, thumbnailStoragePath: null,
+              platform: uploadPlatform, campaignId: campaignId ?? null,
+              originalName: u.originalName, thumbnailStoragePath: u.resolvedThumbPath ?? null,
             })),
           }),
         });
@@ -314,9 +345,11 @@ interface Props {
   campaignName?: string | null;
   onClose: () => void;
   onSuccess?: () => void;
+  /** Platform tag applied to uploaded files. Defaults to 'youtube'. YouTube URL ingestion always uses 'youtube'. */
+  uploadPlatform?: string;
 }
 
-export function YouTubeModal({ brandId, brandName, campaignId, campaignName, onClose, onSuccess }: Props) {
+export function YouTubeModal({ brandId, brandName, campaignId, campaignName, onClose, onSuccess, uploadPlatform = "youtube" }: Props) {
   const [tab, setTab] = useState<Tab>("ingest");
 
   useEffect(() => {
@@ -384,7 +417,7 @@ export function YouTubeModal({ brandId, brandName, campaignId, campaignName, onC
         {/* Content */}
         <div style={{ padding: 22, animation: "fadeInUp 0.18s ease both" }} key={tab}>
           {tab === "ingest"  && <YouTubeIngestForm brandId={brandId} brandName={brandName} campaignId={campaignId} campaignName={campaignName ?? undefined} />}
-          {tab === "upload"  && <UploadPanel brandId={brandId} campaignId={campaignId} />}
+          {tab === "upload"  && <UploadPanel brandId={brandId} campaignId={campaignId} uploadPlatform={uploadPlatform} />}
           {tab === "library" && <LibraryPanel brandId={brandId} campaignId={campaignId} onSuccess={onSuccess} />}
         </div>
       </div>

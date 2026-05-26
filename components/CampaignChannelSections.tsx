@@ -10,7 +10,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { Layers, Crown, Plus } from "lucide-react";
 import { Creative } from "@/types";
-import { CreativeGrid } from "@/components/CreativeGrid";
+import { SortableCreativeGrid } from "@/components/SortableCreativeGrid";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -135,8 +135,10 @@ export function CampaignChannelSections({
               <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-text-primary)", letterSpacing: "-0.02em" }}>{ch.label}</h2>
               <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-accent)", background: "rgba(79,179,186,0.1)", border: "1px solid rgba(79,179,186,0.2)", padding: "2px 8px", borderRadius: "20px" }}>{ch.items.length}</span>
             </div>
-            <CreativeGrid
+            <SortableCreativeGrid
               items={ch.items}
+              campaignId={campaignId}
+              platform={ch.key}
               heroCreativeId={heroCreativeId}
               onToggleHero={handleToggleHero}
               appendSlot={addHandler ? <AddTile onClick={addHandler} /> : undefined}

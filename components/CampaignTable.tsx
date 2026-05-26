@@ -9,7 +9,7 @@
  * - Delete button with type-to-confirm challenge
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -23,6 +23,7 @@ import {
   Film,
   Calendar,
 } from "lucide-react";
+import { FilterBar, FilterState, EMPTY_FILTER } from "./FilterBar";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -252,6 +253,29 @@ export function CampaignTable({ initialCampaigns }: Props) {
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [toDelete, setToDelete]   = useState<CampaignRow | null>(null);
   const [deletedId, setDeletedId] = useState<string | null>(null);
+  const [filter, setFilter]       = useState<FilterState>(EMPTY_FILTER);
+
+  // Derive unique brands for the filter dropdown
+  const brands = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const c of campaigns) seen.set(c.brand_id, c.brand_name);
+    return Array.from(seen.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [campaigns]);
+
+  // Apply filters
+  const filtered = useMemo(() => {
+    const q = filter.text.toLowerCase();
+    return campaigns.filter((c) => {
+      if (filter.brandId && c.brand_id !== filter.brandId) return false;
+      if (q) {
+        const hay = [c.name, c.brand_name].join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [campaigns, filter]);
 
   const handleDeleted = useCallback((id: string) => {
     setDeletedId(id);
@@ -282,6 +306,16 @@ export function CampaignTable({ initialCampaigns }: Props) {
 
   return (
     <>
+      <FilterBar
+        brands={brands}
+        adTypes={[]}   /* campaigns have no ad-type */
+        value={filter}
+        onChange={setFilter}
+        resultCount={filtered.length}
+        totalCount={campaigns.length}
+        placeholder="Search by campaign or brand name…"
+      />
+
       {/* Table */}
       <div style={{
         border: "1px solid var(--color-border)",
@@ -306,7 +340,7 @@ export function CampaignTable({ initialCampaigns }: Props) {
         </div>
 
         {/* Rows */}
-        {campaigns.map((c, i) => {
+        {filtered.map((c, i) => {
           const isDeleting = deletedId === c.id;
           return (
             <div
@@ -316,7 +350,7 @@ export function CampaignTable({ initialCampaigns }: Props) {
                 gridTemplateColumns: "1fr 160px 100px 80px 100px",
                 padding: "14px 20px",
                 alignItems: "center",
-                borderBottom: i < campaigns.length - 1 ? "1px solid var(--color-border)" : "none",
+                borderBottom: i < filtered.length - 1 ? "1px solid var(--color-border)" : "none",
                 background: isDeleting ? "rgba(244,63,94,0.04)" : "transparent",
                 opacity: isDeleting ? 0.5 : 1,
                 transition: "opacity 400ms, background 400ms",

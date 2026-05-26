@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X, Loader2, Save, Crown, Layers, ChevronDown } from "lucide-react";
 import { CreativeGrid } from "@/components/CreativeGrid";
+import { CompetitorGapBar } from "@/components/CompetitorGapBar";
 import type { Creative } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -302,6 +303,11 @@ export function ComparisonBuilder({ allCampaigns, initialCampaignIds, snapshotId
                   <X size={12} />
                 </button>
               </div>
+
+              {/* Gap analysis bar — shown when column data is loaded */}
+              {campaignId && !data?.loading && !data?.error && (
+                <CompetitorGapBar channels={data?.channels ?? []} />
+              )}
 
               {/* Column body */}
               <div style={{ padding: "16px 16px 40px", flex: 1 }}>

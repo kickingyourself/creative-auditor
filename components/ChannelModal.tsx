@@ -17,6 +17,7 @@ import {
   X, UploadCloud, Link2, Loader2,
   CheckCircle2, AlertCircle, Film, Image as ImageIcon, LibraryBig, Search, Check,
 } from "lucide-react";
+import { captureVideoFrame } from "@/lib/captureVideoFrame";
 import type { Creative } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -254,7 +255,7 @@ function UploadPanel({
       try { prepData = await prepRes.json(); } catch { setError(`Prepare failed (${prepRes.status})`); return; }
       if (!prepRes.ok) { setError(prepData?.error ?? "Prepare failed"); return; }
 
-      // 2. PUT each file directly to Supabase Storage
+      // 2. PUT each file + generate & upload thumbnails for video files
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const uploadResults: any[] = new Array(queue.length).fill(null);
       await Promise.all(
@@ -262,7 +263,30 @@ function UploadPanel({
         (prepData.uploads as any[]).map(async (u: any, i: number) => {
           try {
             const r = await fetch(u.signedUrl, { method: "PUT", headers: { "Content-Type": u.contentType }, body: queue[i].file });
-            uploadResults[i] = r.ok ? { ...u, ok: true } : { ...u, ok: false, error: `Upload failed (${r.status})` };
+            if (!r.ok) {
+              let reason = `HTTP ${r.status}`;
+              try { const rb = await r.json(); reason = rb?.message ?? rb?.error ?? reason; } catch { /* ignore */ }
+              if (r.status === 413) reason = "File too large for storage bucket (limit: 500 MB)";
+              uploadResults[i] = { ...u, ok: false, error: reason }; return;
+            }
+
+            // Generate + upload thumbnail for video files
+            let resolvedThumbPath: string | null = null;
+            if (u.contentType?.startsWith("video/") && u.thumbnailSignedUrl && u.thumbnailStoragePath) {
+              try {
+                const thumbBlob = await captureVideoFrame(queue[i].file);
+                if (thumbBlob) {
+                  const tr = await fetch(u.thumbnailSignedUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": "image/jpeg" },
+                    body: thumbBlob,
+                  });
+                  if (tr.ok) resolvedThumbPath = u.thumbnailStoragePath;
+                }
+              } catch { /* thumbnail is best-effort */ }
+            }
+
+            uploadResults[i] = { ...u, ok: true, resolvedThumbPath };
           } catch (err) {
             uploadResults[i] = { ...u, ok: false, error: err instanceof Error ? err.message : "Failed" };
           }
@@ -270,7 +294,14 @@ function UploadPanel({
       );
 
       const successes = uploadResults.filter(r => r?.ok);
-      if (!successes.length) { setError("All uploads failed."); return; }
+      if (!successes.length) {
+        const reasons = uploadResults
+          .filter(r => r && !r.ok)
+          .map((r, i) => `${queue[i]?.file?.name ?? r.filename ?? "File"}: ${r.error ?? "unknown error"}`)
+          .join("\n");
+        setError(reasons || "All uploads failed.");
+        return;
+      }
 
       // 3. Register in DB
       try {
@@ -280,13 +311,13 @@ function UploadPanel({
             brand_id:       prepData.brand_id,
             brand_name:     prepData.brand_name,
             published_date: prepData.published_date,
-            items: successes.map((u: { storagePath: string; contentType: string; originalName: string }) => ({
+            items: successes.map((u: { storagePath: string; contentType: string; originalName: string; resolvedThumbPath?: string | null }) => ({
               storagePath:          u.storagePath,
               contentType:          u.contentType,
               platform,
               campaignId:           campaignId ?? null,
               originalName:         u.originalName,
-              thumbnailStoragePath: null,
+              thumbnailStoragePath: u.resolvedThumbPath ?? null,
             })),
           }),
         });

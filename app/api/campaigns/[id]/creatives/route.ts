@@ -75,10 +75,12 @@ export async function GET(
   catch { return apiError("MISSING_API_KEY", "Supabase credentials are not configured."); }
 
   const [campRes, crRes] = await Promise.all([
-    supabase.from("campaigns").select("id, name, brands(id, name, logo_url)").eq("id", id).single(),
+    supabase.from("campaigns").select("id, name, hero_creative_id, brands(id, name, logo_url)").eq("id", id).single(),
     supabase.from("creatives")
       .select("id, brand_id, campaign_id, platform, source_url, title, thumbnail_url, view_count, engagement_rate, created_at, brands(name, logo_url), campaigns!campaign_id(id, name)")
-      .eq("campaign_id", id).order("created_at", { ascending: false }),
+      .eq("campaign_id", id)
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false }),
   ]);
 
   if (campRes.error) return apiError("SUPABASE_INSERT_ERROR", campRes.error.message);
@@ -95,10 +97,10 @@ export async function GET(
     .filter(ch => (byChannel[ch.key]?.length ?? 0) > 0)
     .map(ch => ({ key: ch.key, label: ch.label, items: byChannel[ch.key] }));
 
-  const camp = campRes.data as unknown as { id: string; name: string; brands: { id: string; name: string; logo_url: string | null } | null };
+  const camp = campRes.data as unknown as { id: string; name: string; hero_creative_id: string | null; brands: { id: string; name: string; logo_url: string | null } | null };
 
   return Response.json({
-    campaign: { id: camp.id, name: camp.name, brand: camp.brands },
+    campaign: { id: camp.id, name: camp.name, hero_creative_id: camp.hero_creative_id ?? null, brand: camp.brands },
     channels,
   });
 }

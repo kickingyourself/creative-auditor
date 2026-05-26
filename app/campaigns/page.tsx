@@ -3,6 +3,7 @@
  *
  * Campaigns list — server-rendered table of all campaigns in the database,
  * with brand info, creative counts, and delete controls.
+ * Also shows a library-wide channel gap-analysis strip at the top.
  */
 
 import type { Metadata } from "next";
@@ -21,7 +22,7 @@ export const dynamic = "force-dynamic";
 export default async function CampaignsPage() {
   const supabase = createServerClient();
 
-  // Fetch all campaigns with brand info and a creative count
+  // Fetch campaigns
   const { data, error } = await supabase
     .from("campaigns")
     .select(`

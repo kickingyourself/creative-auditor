@@ -128,13 +128,12 @@ export function CreativeViewModal({ creative, brandLogoUrl, onClose }: Props) {
 
   // Determine media type
   const isVideoEmbed  = (isYouTube && !!embedUrl) || (isPinterest && !!pinEmbedUrl);
-  // For native video: prefer explicit video_url, then fall back to source_url if it's a direct file
+  // Native video: any direct video file URL wins, regardless of platform or ad_type.
+  // This covers manually uploaded .mp4/.mov files stored in Supabase Storage.
   const nativeVideoSrc =
     creative.video_url ||
-    (creative.ad_type === "video" && isDirectVideoUrl(creative.source_url)
-      ? creative.source_url
-      : null);
-  const isNativeVideo = !isYouTube && !isPinterest && !!nativeVideoSrc;
+    (isDirectVideoUrl(creative.source_url) ? creative.source_url : null);
+  const isNativeVideo = !isVideoEmbed && !!nativeVideoSrc;
   const isImage       = !isVideoEmbed && !isNativeVideo;
 
   return createPortal(

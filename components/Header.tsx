@@ -38,7 +38,7 @@ export function Header() {
         transition: "background var(--transition-base)",
       }}
     >
-      {/* Mobile hamburger — hidden on desktop via CSS */}
+      {/* Mobile hamburger */}
       <button
         id="header-menu-toggle"
         aria-label="Open navigation"
@@ -64,81 +64,18 @@ export function Header() {
         }
       `}</style>
 
-      {/* Search */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          flex: 1,
-          maxWidth: 420,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            background: "var(--color-surface-2)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "8px",
-            padding: "8px 14px",
-            width: "100%",
-            transition: "border-color var(--transition-fast)",
-            cursor: "text",
-          }}
-          onFocus={(e) => {
-            (e.currentTarget as HTMLDivElement).style.borderColor =
-              "var(--color-accent)";
-          }}
-          onBlur={(e) => {
-            (e.currentTarget as HTMLDivElement).style.borderColor =
-              "var(--color-border)";
-          }}
-        >
-          <Search size={15} color="var(--color-text-muted)" />
-          <input
-            id="header-search"
-            type="text"
-            placeholder="Search brands, creatives…"
-            style={{
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              color: "var(--color-text-primary)",
-              fontSize: "13px",
-              width: "100%",
-            }}
-          />
-          <kbd
-            style={{
-              fontSize: "10px",
-              color: "var(--color-text-muted)",
-              background: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "4px",
-              padding: "2px 6px",
-              fontFamily: "monospace",
-            }}
-          >
-            ⌘K
-          </kbd>
-        </div>
-      </div>
+      {/* Spacer — filter bars now live on each page */}
+      <div style={{ flex: 1 }} />
 
       {/* Right controls */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        {/* Notification */}
+        {/* Notifications */}
         <button
           id="header-notifications"
           aria-label="Notifications"
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 36,
-            height: 36,
-            borderRadius: "8px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 36, height: 36, borderRadius: "8px",
             border: "1px solid var(--color-border)",
             background: "transparent",
             color: "var(--color-text-secondary)",
@@ -147,30 +84,20 @@ export function Header() {
             position: "relative",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background =
-              "var(--color-surface-2)";
-            (e.currentTarget as HTMLButtonElement).style.color =
-              "var(--color-text-primary)";
+            (e.currentTarget as HTMLButtonElement).style.background = "var(--color-surface-2)";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-primary)";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background =
-              "transparent";
-            (e.currentTarget as HTMLButtonElement).style.color =
-              "var(--color-text-secondary)";
+            (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-secondary)";
           }}
         >
           <Bell size={16} />
-          <span
-            style={{
-              position: "absolute",
-              top: 7,
-              right: 7,
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "var(--color-accent)",
-            }}
-          />
+          <span style={{
+            position: "absolute", top: 7, right: 7,
+            width: 6, height: 6, borderRadius: "50%",
+            background: "var(--color-accent)",
+          }} />
         </button>
 
         {/* Theme toggle */}
@@ -180,12 +107,8 @@ export function Header() {
             aria-label="Toggle theme"
             onClick={toggleTheme}
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 36,
-              height: 36,
-              borderRadius: "8px",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 36, height: 36, borderRadius: "8px",
               border: "1px solid var(--color-border)",
               background: "transparent",
               color: "var(--color-text-secondary)",
@@ -193,16 +116,12 @@ export function Header() {
               transition: "all var(--transition-fast)",
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "var(--color-surface-2)";
-              (e.currentTarget as HTMLButtonElement).style.color =
-                "var(--color-text-primary)";
+              (e.currentTarget as HTMLButtonElement).style.background = "var(--color-surface-2)";
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-primary)";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "transparent";
-              (e.currentTarget as HTMLButtonElement).style.color =
-                "var(--color-text-secondary)";
+              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-secondary)";
             }}
           >
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
@@ -214,17 +133,10 @@ export function Header() {
           id="header-avatar"
           className="brand-gradient"
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: "8px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            fontSize: "13px",
-            fontWeight: 700,
-            color: "#fff",
-            flexShrink: 0,
+            width: 36, height: 36, borderRadius: "8px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", fontSize: "13px", fontWeight: 700,
+            color: "#fff", flexShrink: 0,
           }}
         >
           S
