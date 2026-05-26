@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+
 import { createPortal } from "react-dom";
 import { Creative } from "@/types";
 import {
@@ -23,6 +24,7 @@ import {
 import { EditCreativeModal } from "./EditCreativeModal";
 import type { EditCreativePayload } from "./EditCreativeModal";
 import { CreativeViewModal } from "./CreativeViewModal";
+import { captureVideoFrame } from "@/lib/captureVideoFrame";
 
 const PLATFORM_CONFIG: Record<
   Creative["platform"],
@@ -154,6 +156,34 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
   const [deleteError, setDeleteError]     = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  // Local thumbnail — set after lazy capture for uploaded videos with no thumbnail
+  const [localThumbUrl, setLocalThumbUrl] = useState<string | null>(null);
+  const thumbGenerating = useState(false);
+  const [isGenThumb, setIsGenThumb]       = thumbGenerating;
+
+  // Lazy-generate thumbnail for uploaded videos that have none
+  const handleVideoLoaded = useCallback(async (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    if (creative.thumbnail_url || localThumbUrl || isGenThumb) return;
+    setIsGenThumb(true);
+    try {
+      const thumbBlob = await captureVideoFrame(creative.source_url);
+      if (!thumbBlob) return;
+
+      // Upload to Supabase Storage via a small server-side proxy
+      const fd = new FormData();
+      fd.append("file", thumbBlob, "thumb.jpg");
+      fd.append("creative_id", creative.id);
+      const res = await fetch("/api/creatives/thumbnail", { method: "POST", body: fd });
+      if (!res.ok) return;
+      const { thumbnail_url } = await res.json() as { thumbnail_url: string };
+      setLocalThumbUrl(thumbnail_url);
+    } catch {
+      /* best-effort */
+    } finally {
+      setIsGenThumb(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creative.id, creative.source_url, creative.thumbnail_url, localThumbUrl]);
 
   const confirmed = confirmText.trim().toUpperCase() === "DELETE";
 
@@ -230,10 +260,10 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
           overflow: "hidden",
         }}
       >
-        {creative.thumbnail_url ? (
+        {(localThumbUrl || creative.thumbnail_url) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={creative.thumbnail_url}
+            src={localThumbUrl ?? creative.thumbnail_url!}
             alt={creative.title ?? ""}
             style={{
               position: "absolute",
@@ -244,12 +274,13 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
             }}
           />
         ) : isDirectVideoFile(creative.source_url) ? (
-          // Uploaded video file — use native video element to render a frame
+          // Uploaded video — render frame preview; onLoadedData captures thumbnail lazily
           <video
             src={creative.source_url}
             muted
             playsInline
             preload="metadata"
+            onLoadedData={handleVideoLoaded}
             style={{
               position: "absolute",
               inset: 0,

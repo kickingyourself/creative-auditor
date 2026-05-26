@@ -103,11 +103,12 @@ export async function DELETE(
 
 /** Fields the client is allowed to update. */
 interface CreativePatch {
-  brand_id?:    string;
-  title?:       string | null;
-  created_at?:  string;
-  campaign_id?: string | null;
-  platform?:    string;
+  brand_id?:      string;
+  title?:         string | null;
+  created_at?:    string;
+  campaign_id?:   string | null;
+  platform?:      string;
+  thumbnail_url?: string | null;
 }
 
 export async function PATCH(
@@ -127,19 +128,20 @@ export async function PATCH(
     return apiError("MISSING_BODY_FIELD", "Request body must be valid JSON.");
   }
 
-  const { brand_id, title, created_at, campaign_id, platform } = body;
+  const { brand_id, title, created_at, campaign_id, platform, thumbnail_url } = body;
 
   // Must supply at least one patchable field
   if (
-    brand_id    === undefined &&
-    title       === undefined &&
-    created_at  === undefined &&
-    campaign_id === undefined &&
-    platform    === undefined
+    brand_id      === undefined &&
+    title         === undefined &&
+    created_at    === undefined &&
+    campaign_id   === undefined &&
+    platform      === undefined &&
+    thumbnail_url === undefined
   ) {
     return apiError(
       "MISSING_BODY_FIELD",
-      "Provide at least one of: brand_id, title, created_at, campaign_id, platform."
+      "Provide at least one of: brand_id, title, created_at, campaign_id, platform, thumbnail_url."
     );
   }
 
@@ -160,10 +162,11 @@ export async function PATCH(
 
   // Build sparse update payload
   const patch: CreativeUpdate = {};
-  if (brand_id    !== undefined) patch.brand_id    = brand_id;
-  if (title       !== undefined) patch.title       = title;
-  if (created_at  !== undefined) patch.created_at  = created_at;
-  if (campaign_id !== undefined) patch.campaign_id = campaign_id;
+  if (brand_id      !== undefined) patch.brand_id      = brand_id;
+  if (title         !== undefined) patch.title         = title;
+  if (created_at    !== undefined) patch.created_at    = created_at;
+  if (campaign_id   !== undefined) patch.campaign_id   = campaign_id;
+  if (thumbnail_url !== undefined) (patch as Record<string, unknown>).thumbnail_url = thumbnail_url;
   if (platform !== undefined) {
     // Migration 005 renamed 'homepage' → 'landing_page' in the DB enum.
     // Write the value as-is; normalise legacy reads elsewhere.

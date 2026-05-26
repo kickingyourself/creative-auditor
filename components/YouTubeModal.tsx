@@ -14,6 +14,7 @@ import {
   Loader2, CheckCircle2, AlertCircle,
   Film, Image as ImageIcon, LibraryBig, Search, Check,
 } from "lucide-react";
+import { captureVideoFrame } from "@/lib/captureVideoFrame";
 import { YouTubeIngestForm } from "@/components/YouTubeIngestForm";
 import type { Creative } from "@/types";
 
@@ -202,7 +203,25 @@ function UploadPanel({ brandId, campaignId, uploadPlatform = "youtube" }: { bran
         (prepData.uploads as any[]).map(async (u: any, i: number) => {
           try {
             const r = await fetch(u.signedUrl, { method: "PUT", headers: { "Content-Type": u.contentType }, body: queue[i].file });
-            uploadResults[i] = r.ok ? { ...u, ok: true } : { ...u, ok: false, error: `Upload failed (${r.status})` };
+            if (!r.ok) { uploadResults[i] = { ...u, ok: false, error: `Upload failed (${r.status})` }; return; }
+
+            // Generate + upload thumbnail for video files
+            let resolvedThumbPath: string | null = null;
+            if (u.contentType?.startsWith("video/") && u.thumbnailSignedUrl && u.thumbnailStoragePath) {
+              try {
+                const thumbBlob = await captureVideoFrame(queue[i].file);
+                if (thumbBlob) {
+                  const tr = await fetch(u.thumbnailSignedUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": "image/jpeg" },
+                    body: thumbBlob,
+                  });
+                  if (tr.ok) resolvedThumbPath = u.thumbnailStoragePath;
+                }
+              } catch { /* thumbnail is best-effort */ }
+            }
+
+            uploadResults[i] = { ...u, ok: true, resolvedThumbPath };
           } catch (err) { uploadResults[i] = { ...u, ok: false, error: err instanceof Error ? err.message : "Failed" }; }
         })
       );
@@ -216,10 +235,10 @@ function UploadPanel({ brandId, campaignId, uploadPlatform = "youtube" }: { bran
           body: JSON.stringify({
             brand_id: prepData.brand_id, brand_name: prepData.brand_name,
             published_date: prepData.published_date,
-            items: successes.map((u: { storagePath: string; contentType: string; originalName: string }) => ({
+            items: successes.map((u: { storagePath: string; contentType: string; originalName: string; resolvedThumbPath?: string | null }) => ({
               storagePath: u.storagePath, contentType: u.contentType,
               platform: uploadPlatform, campaignId: campaignId ?? null,
-              originalName: u.originalName, thumbnailStoragePath: null,
+              originalName: u.originalName, thumbnailStoragePath: u.resolvedThumbPath ?? null,
             })),
           }),
         });
