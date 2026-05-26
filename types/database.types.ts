@@ -21,8 +21,9 @@
  *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'programmatic';
  *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'ooh';
  *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'tvc';
+ *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'meta';
  */
-export type PlatformType = 'youtube' | 'tiktok' | 'landing_page' | 'homepage' | 'social' | 'pinterest' | 'programmatic' | 'ooh' | 'tvc';
+export type PlatformType = 'youtube' | 'tiktok' | 'landing_page' | 'homepage' | 'social' | 'pinterest' | 'programmatic' | 'ooh' | 'tvc' | 'meta';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
