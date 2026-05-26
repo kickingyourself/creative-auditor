@@ -274,13 +274,19 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
             }}
           />
         ) : isDirectVideoFile(creative.source_url) ? (
-          // Uploaded video — render frame preview; onLoadedData captures thumbnail lazily
+          // Uploaded video — seek to 1s on load so the preview isn't a black frame
           <video
             src={creative.source_url}
             muted
             playsInline
-            preload="metadata"
-            onLoadedData={handleVideoLoaded}
+            preload="auto"
+            onLoadedData={(e) => {
+              // Seek the visible element to 1s for a non-black preview frame
+              const el = e.currentTarget;
+              if (el.duration > 1) el.currentTime = 1;
+              // Then lazily capture & persist the thumbnail
+              handleVideoLoaded(e);
+            }}
             style={{
               position: "absolute",
               inset: 0,
