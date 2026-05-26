@@ -34,8 +34,8 @@ export async function captureVideoFrame(
     video.addEventListener("error", () => done(null));
 
     video.addEventListener("loadedmetadata", () => {
-      // Seek to seekTo seconds, clamped to 10% of the video duration
-      video.currentTime = Math.min(seekTo, video.duration * 0.1);
+      // Seek to exactly 1s (or just before end for very short clips)
+      video.currentTime = Math.min(seekTo, Math.max(0, video.duration - 0.05));
     });
 
     video.addEventListener("seeked", () => {
