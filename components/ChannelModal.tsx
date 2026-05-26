@@ -263,7 +263,12 @@ function UploadPanel({
         (prepData.uploads as any[]).map(async (u: any, i: number) => {
           try {
             const r = await fetch(u.signedUrl, { method: "PUT", headers: { "Content-Type": u.contentType }, body: queue[i].file });
-            if (!r.ok) { uploadResults[i] = { ...u, ok: false, error: `Upload failed (${r.status})` }; return; }
+            if (!r.ok) {
+              let reason = `HTTP ${r.status}`;
+              try { const rb = await r.json(); reason = rb?.message ?? rb?.error ?? reason; } catch { /* ignore */ }
+              if (r.status === 413) reason = "File too large for storage bucket (limit: 500 MB)";
+              uploadResults[i] = { ...u, ok: false, error: reason }; return;
+            }
 
             // Generate + upload thumbnail for video files
             let resolvedThumbPath: string | null = null;
@@ -289,7 +294,14 @@ function UploadPanel({
       );
 
       const successes = uploadResults.filter(r => r?.ok);
-      if (!successes.length) { setError("All uploads failed."); return; }
+      if (!successes.length) {
+        const reasons = uploadResults
+          .filter(r => r && !r.ok)
+          .map((r, i) => `${queue[i]?.file?.name ?? r.filename ?? "File"}: ${r.error ?? "unknown error"}`)
+          .join("\n");
+        setError(reasons || "All uploads failed.");
+        return;
+      }
 
       // 3. Register in DB
       try {
