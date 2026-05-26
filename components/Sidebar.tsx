@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -8,7 +9,6 @@ import {
   Film,
   Layers,
   Settings,
-  Sparkles,
   ChevronRight,
   UploadCloud,
   PanelLeftClose,
@@ -54,15 +54,20 @@ export function Sidebar() {
           transition: "padding 250ms ease",
         }}
       >
-        <div
-          className="brand-gradient"
+        {/* PMG logo — full width when expanded, small square when collapsed */}
+        <img
+          src="/pmg_logo_white.svg"
+          alt="PMG"
           style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
+            height: collapsed && !isMobile ? 20 : 28,
+            width: collapsed && !isMobile ? 20 : "auto",
+            maxWidth: collapsed && !isMobile ? 20 : 90,
+            objectFit: "contain",
+            objectPosition: "left center",
+            flexShrink: 0,
+            transition: "all 250ms ease",
           }}
-        >
-          <Sparkles size={16} color="#fff" />
-        </div>
+        />
 
         {/* Hide text when collapsed (desktop) */}
         {(!collapsed || isMobile) && (
