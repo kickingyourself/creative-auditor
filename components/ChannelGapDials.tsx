@@ -27,7 +27,6 @@ export const CHANNEL_DEFS: ChannelDef[] = [
   { platform: "tiktok",       label: "TikTok",       max: 20, color: "#69c9d0" },
   { platform: "landing_page", label: "Landing Page", max: 3,  color: "#22d3a0" },
   { platform: "meta",         label: "Meta",         max: 20, color: "#1877f2" },
-  { platform: "social",       label: "Social",       max: 20, color: "#a78bfa" },
   { platform: "programmatic", label: "Programmatic", max: 20, color: "#f59e0b" },
   { platform: "ooh",          label: "OOH",          max: 20, color: "#06b6d4" },
   { platform: "tvc",          label: "TVC",          max: 20, color: "#8b5cf6" },
