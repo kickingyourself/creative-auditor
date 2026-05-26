@@ -3,11 +3,13 @@
  *
  * Campaigns list — server-rendered table of all campaigns in the database,
  * with brand info, creative counts, and delete controls.
+ * Also shows a library-wide channel gap-analysis strip at the top.
  */
 
 import type { Metadata } from "next";
 import { createServerClient } from "@/utils/supabase/server";
 import { CampaignTable, type CampaignRow } from "@/components/CampaignTable";
+import { ChannelGapDials } from "@/components/ChannelGapDials";
 import { Layers, Plus } from "lucide-react";
 import Link from "next/link";
 
@@ -21,20 +23,34 @@ export const dynamic = "force-dynamic";
 export default async function CampaignsPage() {
   const supabase = createServerClient();
 
-  // Fetch all campaigns with brand info and a creative count
-  const { data, error } = await supabase
-    .from("campaigns")
-    .select(`
-      id,
-      name,
-      brand_id,
-      start_date,
-      end_date,
-      created_at,
-      brands(name, logo_url),
-      creatives!campaign_id(id)
-    `)
-    .order("created_at", { ascending: false });
+  // Fetch campaigns + platform counts in parallel
+  const [{ data, error }, { data: platformRows }] = await Promise.all([
+    supabase
+      .from("campaigns")
+      .select(`
+        id,
+        name,
+        brand_id,
+        start_date,
+        end_date,
+        created_at,
+        brands(name, logo_url),
+        creatives!campaign_id(id)
+      `)
+      .order("created_at", { ascending: false }),
+
+    // Lightweight platform pull — just the column, no limit
+    supabase
+      .from("creatives")
+      .select("platform"),
+  ]);
+
+  // Build platform count map
+  const platformCounts: Record<string, number> = {};
+  for (const row of (platformRows ?? []) as { platform: string }[]) {
+    const p = row.platform === "homepage" ? "landing_page" : row.platform;
+    platformCounts[p] = (platformCounts[p] ?? 0) + 1;
+  }
 
   const campaigns: CampaignRow[] = ((data ?? []) as unknown as {
     id: string;
@@ -61,7 +77,7 @@ export default async function CampaignsPage() {
     <div style={{ padding: "28px 28px 80px", maxWidth: 1100, margin: "0 auto" }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 6 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Layers size={20} color="var(--color-accent)" />
@@ -102,6 +118,9 @@ export default async function CampaignsPage() {
             : `${campaigns.length} campaign${campaigns.length !== 1 ? "s" : ""} across your brand library`}
         </p>
       </div>
+
+      {/* ── Channel gap analysis ── */}
+      <ChannelGapDials platformCounts={platformCounts} />
 
       {error ? (
         <div style={{
