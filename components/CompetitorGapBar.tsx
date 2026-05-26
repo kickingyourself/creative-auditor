@@ -25,7 +25,7 @@ const S   = 44;               // svg size px
 const CX  = S / 2;
 const CY  = S / 2;
 const R   = 17;
-const SW  = 3.5;
+const SW  = 2;                // thinner stroke weight
 const C   = 2 * Math.PI * R;
 const ARC = C * 0.75;         // 270° arc
 const GAP = C - ARC;
@@ -35,7 +35,6 @@ function MiniDial({ platform, count, max, color }: {
   platform: string; count: number; max: number; color: string;
 }) {
   const raw    = Math.min(count / max, 1);
-  const pct    = Math.round(raw * 100);
   const filled = raw * ARC;
 
   // dot position at arc tip
@@ -46,6 +45,10 @@ function MiniDial({ platform, count, max, color }: {
 
   const done = raw >= 1;
 
+  // Font size scales for digit count
+  const countStr  = String(count);
+  const fontSize  = countStr.length >= 3 ? 6.5 : countStr.length === 2 ? 8 : 9;
+
   return (
     <div style={{
       display: "flex",
@@ -54,7 +57,7 @@ function MiniDial({ platform, count, max, color }: {
       gap: 2,
       flexShrink: 0,
     }}>
-      <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} aria-label={`${platform}: ${pct}%`}>
+      <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} aria-label={`${platform}: ${count} assets`}>
         {/* Track */}
         <circle
           cx={CX} cy={CY} r={R}
@@ -62,7 +65,7 @@ function MiniDial({ platform, count, max, color }: {
           stroke={color}
           strokeOpacity={0.15}
           strokeWidth={SW}
-          strokeLinecap="round"
+          strokeLinecap="butt"
           strokeDasharray={`${ARC} ${GAP}`}
           transform={`rotate(${ROT} ${CX} ${CY})`}
         />
@@ -73,40 +76,30 @@ function MiniDial({ platform, count, max, color }: {
             fill="none"
             stroke={color}
             strokeWidth={SW}
-            strokeLinecap="round"
+            strokeLinecap="butt"
             strokeDasharray={`${filled} ${C - filled}`}
             transform={`rotate(${ROT} ${CX} ${CY})`}
             style={done ? { filter: `drop-shadow(0 0 3px ${color}99)` } : undefined}
           />
         )}
-        {/* Dot */}
+        {/* Dot — kept at 2.5 */}
         {filled > 0 && (
           <circle cx={dotX} cy={dotY} r={2.5} fill={color} />
         )}
-        {/* Pct label */}
+        {/* Asset count in centre */}
         <text
           x={CX} y={CY + 3.5}
           textAnchor="middle"
-          fill={pct > 0 ? "var(--color-text-primary)" : "var(--color-text-muted)"}
-          fontSize={pct === 100 ? 7 : 8.5}
+          fill={count > 0 ? "var(--color-text-primary)" : "var(--color-text-muted)"}
+          fontSize={fontSize}
           fontWeight={700}
           fontFamily="inherit"
         >
-          {pct}%
+          {count}
         </text>
-        {/* Completion glow ring */}
-        {done && (
-          <circle
-            cx={CX} cy={CY} r={R + 2}
-            fill="none"
-            stroke={color}
-            strokeOpacity={0.12}
-            strokeWidth={1.5}
-          />
-        )}
       </svg>
 
-      {/* Channel abbrev */}
+      {/* Channel abbrev — no x/max row */}
       <span style={{
         fontSize: 8,
         fontWeight: 700,
@@ -119,16 +112,6 @@ function MiniDial({ platform, count, max, color }: {
          platform === "programmatic" ? "PROG" :
          platform.slice(0, 3).toUpperCase()}
       </span>
-
-      {/* count / max */}
-      <span style={{
-        fontSize: 8,
-        color: "var(--color-text-muted)",
-        opacity: 0.7,
-        fontVariantNumeric: "tabular-nums",
-      }}>
-        {count}<span style={{ opacity: 0.5 }}>/{max}</span>
-      </span>
     </div>
   );
 }
@@ -137,8 +120,6 @@ export function CompetitorGapBar({ channels }: Props) {
   // Build platform→count map from the already-loaded channel data
   const counts: Record<string, number> = {};
   for (const ch of channels) {
-    // Map channel key back to platform key used in CHANNEL_DEFS
-    // channel key matches platform directly (landing_page, youtube, etc.)
     counts[ch.key] = (counts[ch.key] ?? 0) + ch.items.length;
   }
 
