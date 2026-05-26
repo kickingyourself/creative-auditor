@@ -27,6 +27,7 @@ interface ChannelItem { creative: Creative; brandLogoUrl: string | null; }
 interface ChannelGroup { key: string; label: string; items: ChannelItem[]; }
 interface CampaignData {
   id: string; name: string; start_date?: string | null;
+  hero_creative_id?: string | null;
   brand: { id: string; name: string; logo_url: string | null } | null;
 }
 
@@ -125,6 +126,7 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
   const [campaign, setCampaign]     = useState<CampaignData | null>(null);
   const [channels, setChannels]     = useState<ChannelGroup[]>([]);
   const [allItems, setAllItems]     = useState<ChannelItem[]>([]);
+  const [heroCreativeId, setHeroCreativeId] = useState<string | null>(null);
   const [loading, setLoading]       = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [tick, setTick]             = useState(0);
@@ -146,6 +148,7 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
       if (!res.ok) { setFetchError("Failed to load campaign"); return; }
       const data = await res.json();
       setCampaign(data.campaign);
+      setHeroCreativeId(data.campaign.hero_creative_id ?? null);
       setChannels(data.channels ?? []);
       setAllItems((data.channels ?? []).flatMap((ch: ChannelGroup) => ch.items));
       setFetchError(null);
@@ -251,7 +254,7 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
         brandId={brandId}
         brandName={brandName}
         brandLogoUrl={campaign.brand?.logo_url ?? null}
-        initialHeroCreativeId={null}
+        initialHeroCreativeId={heroCreativeId}
         onAddCreative={onAddCreative}
       />
 
