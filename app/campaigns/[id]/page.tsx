@@ -7,7 +7,7 @@
  * Layout: Campaign info → Hero → Landing Page → YouTube → Meta → TikTok → Pinterest → …
  */
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, useMemo, use } from "react";
 import Link from "next/link";
 import {
   Layers, ChevronRight, Pencil, Check, X, Loader2, AlertCircle, RefreshCw, LayoutGrid, Music2,
@@ -18,6 +18,7 @@ import { ChannelModal, type ChannelConfig } from "@/components/ChannelModal";
 import { PinterestModal }      from "@/components/PinterestModal";
 import { ProgrammaticModal }   from "@/components/ProgrammaticModal";
 import { CampaignChannelSections } from "@/components/CampaignChannelSections";
+import { ChannelGapDials }          from "@/components/ChannelGapDials";
 import type { Creative } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -182,6 +183,16 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
   const brandId   = campaign.brand?.id   ?? "";
   const brandName = campaign.brand?.name ?? "";
 
+  // Derive platform counts from this campaign's creatives (for the gap dials)
+  const platformCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const { creative } of allItems) {
+      const p = creative.platform === "homepage" ? "landing_page" : creative.platform;
+      counts[p] = (counts[p] ?? 0) + 1;
+    }
+    return counts;
+  }, [allItems]);
+
   const filledChannels  = channels.map(ch => ({ key: ch.key, label: ch.label, items: ch.items }));
   const CHANNEL_ORDER   = ["landing_page","youtube","meta","tiktok","pinterest","programmatic","ooh","tvc"];
   const filledKeys      = new Set(filledChannels.map(c => c.key));
@@ -219,7 +230,10 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
       {/* 1. Campaign information */}
       <EditableHeader campaign={campaign} onSaved={upd => setCampaign(c => c ? { ...c, ...upd } : c)} />
 
-      {/* 2. Hero → 3. Landing Page → 4. YouTube → 5. Meta → … */}
+      {/* 2. Channel gap analysis */}
+      <ChannelGapDials platformCounts={platformCounts} />
+
+      {/* 3. Hero → Landing Page → YouTube → Meta → … */}
       {allItems.length === 0 ? (
         <div style={{ padding: "14px 18px", background: "rgba(79,179,186,0.06)", border: "1px solid rgba(79,179,186,0.15)", borderRadius: 10, display: "flex", alignItems: "center", gap: 8, marginBottom: 32 }}>
           <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Campaign created — click a channel below to start adding creatives</span>
