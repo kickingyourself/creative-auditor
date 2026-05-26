@@ -39,7 +39,7 @@ const SIZE    = 64;   // slightly smaller for condensed vertical space
 const CX      = SIZE / 2;
 const CY      = SIZE / 2;
 const RADIUS  = 24;
-const STROKE  = 5;
+const STROKE  = 3;
 const CIRC    = 2 * Math.PI * RADIUS;
 const ARC_DEG = 270;
 const ARC_LEN = CIRC * (ARC_DEG / 360);
@@ -87,7 +87,7 @@ function Dial({ def, count }: { def: ChannelDef; count: number }) {
           stroke={def.color}
           strokeOpacity={trackOpacity}
           strokeWidth={STROKE}
-          strokeLinecap="round"
+          strokeLinecap="butt"
           strokeDasharray={`${ARC_LEN} ${GAP_LEN}`}
           transform={`rotate(${START_ROTATION} ${CX} ${CY})`}
         />
@@ -99,7 +99,7 @@ function Dial({ def, count }: { def: ChannelDef; count: number }) {
             fill="none"
             stroke={def.color}
             strokeWidth={STROKE}
-            strokeLinecap="round"
+            strokeLinecap="butt"
             strokeDasharray={`${filled} ${CIRC - filled}`}
             transform={`rotate(${START_ROTATION} ${CX} ${CY})`}
             style={{ filter: isComplete ? `drop-shadow(0 0 4px ${def.color}88)` : undefined }}
