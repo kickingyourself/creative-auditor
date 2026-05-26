@@ -163,6 +163,18 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
 
   function refresh() { setTick(Date.now()); }
 
+  // Derive platform counts from this campaign's creatives (for the gap dials).
+  // Must be here — before any early returns — to satisfy Rules of Hooks.
+  const platformCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const { creative } of allItems) {
+      const raw = creative.platform as string;
+      const p = raw === "homepage" ? "landing_page" : raw;
+      counts[p] = (counts[p] ?? 0) + 1;
+    }
+    return counts;
+  }, [allItems]);
+
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300, gap: 10 }}>
       <Loader2 size={18} style={{ animation: "spin 1s linear infinite", color: "var(--color-accent)" }} />
@@ -182,17 +194,6 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
 
   const brandId   = campaign.brand?.id   ?? "";
   const brandName = campaign.brand?.name ?? "";
-
-  // Derive platform counts from this campaign's creatives (for the gap dials)
-  const platformCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const { creative } of allItems) {
-      const raw = creative.platform as string;
-      const p = raw === "homepage" ? "landing_page" : raw;
-      counts[p] = (counts[p] ?? 0) + 1;
-    }
-    return counts;
-  }, [allItems]);
 
   const filledChannels  = channels.map(ch => ({ key: ch.key, label: ch.label, items: ch.items }));
   const CHANNEL_ORDER   = ["landing_page","youtube","meta","tiktok","pinterest","programmatic","ooh","tvc"];
