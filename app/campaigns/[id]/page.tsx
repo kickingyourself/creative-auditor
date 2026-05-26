@@ -187,7 +187,8 @@ export default function CampaignBuilderPage({ params }: { params: Promise<{ id: 
   const platformCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const { creative } of allItems) {
-      const p = creative.platform === "homepage" ? "landing_page" : creative.platform;
+      const raw = creative.platform as string;
+      const p = raw === "homepage" ? "landing_page" : raw;
       counts[p] = (counts[p] ?? 0) + 1;
     }
     return counts;
