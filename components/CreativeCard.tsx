@@ -122,6 +122,13 @@ function extractDomain(url: string): string {
   catch { return url; }
 }
 
+/** True when source_url is a direct video file (e.g. Supabase Storage .mp4 upload). */
+function isDirectVideoFile(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try { return /\.(mp4|mov|webm|m4v|ogv|ogg)$/i.test(new URL(url).pathname); }
+  catch { return false; }
+}
+
 interface CreativeCardProps {
   creative: Creative;
   index?: number;
@@ -227,7 +234,22 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={creative.thumbnail_url}
-            alt={creative.title}
+            alt={creative.title ?? ""}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        ) : isDirectVideoFile(creative.source_url) ? (
+          // Uploaded video file — use native video element to render a frame
+          <video
+            src={creative.source_url}
+            muted
+            playsInline
+            preload="metadata"
             style={{
               position: "absolute",
               inset: 0,

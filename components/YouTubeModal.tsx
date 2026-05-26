@@ -152,7 +152,7 @@ const MAX_MB = 200;
 function uid() { return Math.random().toString(36).slice(2); }
 function fmtBytes(b: number) { return b >= 1048576 ? `${(b/1048576).toFixed(1)} MB` : `${(b/1024).toFixed(0)} KB`; }
 
-function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: string | null }) {
+function UploadPanel({ brandId, campaignId, uploadPlatform = "youtube" }: { brandId: string; campaignId?: string | null; uploadPlatform?: string }) {
   const [queue, setQueue]           = useState<QueuedFile[]>([]);
   const [isDragging, setDragging]   = useState(false);
   const [results, setResults]       = useState<{ status: string; filename: string; error?: string }[] | null>(null);
@@ -182,7 +182,7 @@ function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: st
         prepRes = await fetch("/api/upload/prepare", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            brand_id: brandId, platform: "youtube",
+            brand_id: brandId, platform: uploadPlatform,
             campaign_id: campaignId || undefined,
             published_date: new Date().toISOString().slice(0, 10),
             files: queue.map(q => ({ name: q.file.name, size: q.file.size, type: q.file.type })),
@@ -218,7 +218,7 @@ function UploadPanel({ brandId, campaignId }: { brandId: string; campaignId?: st
             published_date: prepData.published_date,
             items: successes.map((u: { storagePath: string; contentType: string; originalName: string }) => ({
               storagePath: u.storagePath, contentType: u.contentType,
-              platform: "youtube", campaignId: campaignId ?? null,
+              platform: uploadPlatform, campaignId: campaignId ?? null,
               originalName: u.originalName, thumbnailStoragePath: null,
             })),
           }),
@@ -314,9 +314,11 @@ interface Props {
   campaignName?: string | null;
   onClose: () => void;
   onSuccess?: () => void;
+  /** Platform tag applied to uploaded files. Defaults to 'youtube'. YouTube URL ingestion always uses 'youtube'. */
+  uploadPlatform?: string;
 }
 
-export function YouTubeModal({ brandId, brandName, campaignId, campaignName, onClose, onSuccess }: Props) {
+export function YouTubeModal({ brandId, brandName, campaignId, campaignName, onClose, onSuccess, uploadPlatform = "youtube" }: Props) {
   const [tab, setTab] = useState<Tab>("ingest");
 
   useEffect(() => {
@@ -384,7 +386,7 @@ export function YouTubeModal({ brandId, brandName, campaignId, campaignName, onC
         {/* Content */}
         <div style={{ padding: 22, animation: "fadeInUp 0.18s ease both" }} key={tab}>
           {tab === "ingest"  && <YouTubeIngestForm brandId={brandId} brandName={brandName} campaignId={campaignId} campaignName={campaignName ?? undefined} />}
-          {tab === "upload"  && <UploadPanel brandId={brandId} campaignId={campaignId} />}
+          {tab === "upload"  && <UploadPanel brandId={brandId} campaignId={campaignId} uploadPlatform={uploadPlatform} />}
           {tab === "library" && <LibraryPanel brandId={brandId} campaignId={campaignId} onSuccess={onSuccess} />}
         </div>
       </div>
