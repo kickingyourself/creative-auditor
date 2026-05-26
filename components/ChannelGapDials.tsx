@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * components/ChannelGapDials.tsx
  *
@@ -8,8 +10,6 @@
  *   landing_page  → 3 creatives = 100%
  *   all others    → 20 creatives = 100%
  */
-
-"use client";
 
 // ── Channel definitions ───────────────────────────────────────────────────────
 
