@@ -102,9 +102,20 @@ export async function GET(req: Request): Promise<Response> {
   return Response.redirect(authUrl, 302);
 }
 
-/** Derives the absolute callback URI from the incoming request's origin. */
+/**
+ * Derives the absolute callback URI from the incoming request's origin.
+ *
+ * CRITICAL (per Alli docs): The redirect URI must use 127.0.0.1, NOT localhost.
+ * Alli Central's OAuth validator only applies port-flexible loopback matching
+ * to 127.0.0.1 and [::1]. Using 'localhost' causes an invalid_client error.
+ */
 function getRedirectUri(req: Request): string {
-  const origin = process.env.NEXT_PUBLIC_APP_URL
-    ?? new URL(req.url).origin;
+  // If an explicit production URL is set, use it as-is.
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/alli/callback`;
+  }
+
+  // For local dev: replace 'localhost' with '127.0.0.1' — required by Alli.
+  const origin = new URL(req.url).origin.replace(/\/\/localhost/, "//127.0.0.1");
   return `${origin}/api/auth/alli/callback`;
 }

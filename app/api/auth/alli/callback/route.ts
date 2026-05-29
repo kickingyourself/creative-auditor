@@ -24,8 +24,12 @@ function getDb() {
 }
 
 function getRedirectUri(req: Request): string {
-  const origin = process.env.NEXT_PUBLIC_APP_URL
-    ?? new URL(req.url).origin;
+  // Must exactly match what was sent in the authorize request.
+  // Alli requires 127.0.0.1, not localhost (per Alli OAuth docs).
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/alli/callback`;
+  }
+  const origin = new URL(req.url).origin.replace(/\/\/localhost/, "//127.0.0.1");
   return `${origin}/api/auth/alli/callback`;
 }
 
