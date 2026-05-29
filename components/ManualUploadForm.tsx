@@ -304,7 +304,7 @@ export function ManualUploadForm() {
               if (thumbPut.ok) thumbnailStoragePath = u.thumbnailStoragePath;
             }
 
-            uploadResults[i] = { ...u, ok: true, thumbnailStoragePath };
+            uploadResults[i] = { ...u, ok: true, thumbnailStoragePath, fileSizeBytes: queuedFile.file.size };
           } catch (err) {
             uploadResults[i] = { ...u, ok: false, error: err instanceof Error ? err.message : "Network error during upload." };
           }
@@ -322,16 +322,18 @@ export function ManualUploadForm() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              ingest_job_id:  prepareData.ingest_job_id ?? null,
               brand_id:       prepareData.brand_id,
               brand_name:     prepareData.brand_name,
               published_date: prepareData.published_date,
-              items: successfulUploads.map((u: { storagePath: string; contentType: string; platform: string; campaignId: string | null; originalName: string; thumbnailStoragePath: string | null }) => ({
+              items: successfulUploads.map((u: { storagePath: string; contentType: string; platform: string; campaignId: string | null; originalName: string; thumbnailStoragePath: string | null; fileSizeBytes?: number | null }) => ({
                 storagePath:          u.storagePath,
                 contentType:          u.contentType,
                 platform:             u.platform,
                 campaignId:           u.campaignId,
                 originalName:         u.originalName,
                 thumbnailStoragePath: u.thumbnailStoragePath ?? null,
+                fileSizeBytes:        u.fileSizeBytes ?? null,
               })),
             }),
           });
