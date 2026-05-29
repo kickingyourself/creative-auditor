@@ -52,7 +52,7 @@ interface Props {
 // ── Sortable card wrapper ──────────────────────────────────────────────────────
 
 function SortableCard({
-  item, index, heroCreativeId, onToggleHero, onDelete, onUpdate, isDraggingActive,
+  item, index, heroCreativeId, onToggleHero, onDelete, onUpdate, isDraggingActive, campaignId,
 }: {
   item: Item;
   index: number;
@@ -61,6 +61,7 @@ function SortableCard({
   onDelete: (id: string) => void;
   onUpdate: (id: string, patch: EditCreativePayload & { brand_name?: string; campaign_name?: string }) => void;
   isDraggingActive: boolean;
+  campaignId?: string | null;
 }) {
   const {
     attributes,
@@ -116,6 +117,7 @@ function SortableCard({
         creative={item.creative}
         index={index}
         brandLogoUrl={item.brandLogoUrl}
+        campaignId={campaignId}
         onDelete={onDelete}
         onUpdate={onUpdate}
         isHero={!!heroCreativeId && item.creative.id === heroCreativeId}
@@ -271,6 +273,7 @@ export function SortableCreativeGrid({
                   onDelete={handleDelete}
                   onUpdate={handleUpdate}
                   isDraggingActive={!!activeId}
+                  campaignId={campaignId}
                 />
               </div>
             ))}
