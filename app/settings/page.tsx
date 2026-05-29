@@ -194,7 +194,8 @@ function AlliConnectionCard() {
   const [status, setStatus]     = useState<AlliStatus | null>(null);
   const [loading, setLoading]   = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
-  const [authTab, setAuthTab]   = useState<"oauth" | "manual">("manual");
+  const [authTab, setAuthTab]   = useState<"oauth" | "manual">("oauth");
+  const [isLocal, setIsLocal]   = useState(false);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -206,6 +207,13 @@ function AlliConnectionCard() {
   }, []);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  // Detect local vs deployed environment for OAuth guidance
+  useEffect(() => {
+    setIsLocal(
+      window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"
+    );
+  }, []);
 
   // Handle OAuth redirect-back params
   useEffect(() => {
@@ -400,7 +408,7 @@ function AlliConnectionCard() {
                       cursor: "pointer", transition: "all 150ms",
                     }}
                   >
-                    {tab === "manual" ? "🔑 Paste Token" : "🔐 OAuth (requires setup)"}
+                    {tab === "manual" ? "🔑 Paste Token" : "🔐 OAuth (recommended)"}
                   </button>
                 ))}
               </div>
@@ -414,41 +422,69 @@ function AlliConnectionCard() {
                 />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {/* OAuth pending registration notice */}
-                  <div style={{
-                    display: "flex", gap: 8, padding: "12px 14px",
-                    background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)",
-                    borderRadius: 10,
-                  }}>
-                    <AlertCircle size={14} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
-                    <div>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b", marginBottom: 4 }}>
-                        Redirect URI registration required
-                      </p>
-                      <p style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.6 }}>
-                        The Alli OAuth flow requires your app domain to be registered as an allowed redirect URI.
-                        Ask the Alli team (Maxwell Thomason) to add{" "}
-                        <code style={{ fontSize: 11, background: "rgba(255,255,255,0.07)", padding: "1px 5px", borderRadius: 3 }}>
-                          …/api/auth/alli/callback
-                        </code>{" "}
-                        for your Vercel domain, then this flow will work automatically.
-                      </p>
+                  {isLocal ? (
+                    /* Local — OAuth works via Alli loopback matching */
+                    <div style={{
+                      display: "flex", gap: 8, padding: "12px 14px",
+                      background: "rgba(34,211,160,0.07)", border: "1px solid rgba(34,211,160,0.2)",
+                      borderRadius: 10,
+                    }}>
+                      <CheckCircle2 size={14} color="#22d3a0" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "#22d3a0", marginBottom: 4 }}>
+                          Ready to connect
+                        </p>
+                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+                          Running locally — Alli OAuth allows loopback authentication
+                          on <code style={{ fontSize: 11, background: "rgba(255,255,255,0.07)", padding: "1px 5px", borderRadius: 3 }}>127.0.0.1</code> without
+                          registering a redirect URI. Your token (including refresh token) will be stored
+                          in the database and available on all deployments automatically.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* Deployed — guide user to authenticate locally */
+                    <div style={{
+                      display: "flex", gap: 8, padding: "12px 14px",
+                      background: "rgba(79,110,247,0.07)", border: "1px solid rgba(79,110,247,0.2)",
+                      borderRadius: 10,
+                    }}>
+                      <ShieldCheck size={14} color="#4f6ef7" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "#4f6ef7", marginBottom: 4 }}>
+                          Authenticate from localhost
+                        </p>
+                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+                          Run the app locally with{" "}
+                          <code style={{ fontSize: 11, background: "rgba(255,255,255,0.07)", padding: "1px 5px", borderRadius: 3 }}>npm run dev</code>{" "}
+                          and open{" "}
+                          <code style={{ fontSize: 11, background: "rgba(255,255,255,0.07)", padding: "1px 5px", borderRadius: 3 }}>http://127.0.0.1:3000/settings</code>{" "}
+                          to complete OAuth. Alli allows loopback authentication without registering redirect URIs.
+                          The token is stored in the database, so it will be available here automatically.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   <button
                     onClick={() => { window.location.href = "/api/auth/alli/authorize?redirect_after=/settings"; }}
+                    disabled={!isLocal}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 8,
                       padding: "10px 22px", borderRadius: 10, border: "none",
-                      background: "linear-gradient(135deg, #4f6ef7, #8b5cf6)",
-                      color: "#fff", fontSize: 14, fontWeight: 700,
-                      cursor: "pointer", boxShadow: "0 4px 16px rgba(79,110,247,0.3)",
+                      background: isLocal
+                        ? "linear-gradient(135deg, #4f6ef7, #8b5cf6)"
+                        : "var(--color-surface-2)",
+                      color: isLocal ? "#fff" : "var(--color-text-muted)",
+                      fontSize: 14, fontWeight: 700,
+                      cursor: isLocal ? "pointer" : "not-allowed",
+                      boxShadow: isLocal ? "0 4px 16px rgba(79,110,247,0.3)" : "none",
                       alignSelf: "flex-start",
+                      transition: "all 200ms",
                     }}
                   >
                     <Plug size={14} />
-                    Try OAuth Anyway
+                    {isLocal ? "Connect to Alli" : "Run locally to connect"}
                   </button>
 
                   <a
