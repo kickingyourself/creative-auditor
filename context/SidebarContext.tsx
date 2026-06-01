@@ -11,7 +11,7 @@ interface SidebarContextValue {
 }
 
 const SidebarContext = createContext<SidebarContextValue>({
-  collapsed: false,
+  collapsed: true,
   mobileOpen: false,
   toggleCollapsed: () => {},
   toggleMobile: () => {},
@@ -19,7 +19,7 @@ const SidebarContext = createContext<SidebarContextValue>({
 });
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Sync collapsed → CSS custom property on <html> so <main> and <header> reflow via CSS
