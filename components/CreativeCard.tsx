@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-
 import { createPortal } from "react-dom";
 import { Creative } from "@/types";
 import {
@@ -20,10 +19,12 @@ import {
   Loader2,
   Layers,
   Crown,
+  Star,
 } from "lucide-react";
 import { EditCreativeModal } from "./EditCreativeModal";
 import type { EditCreativePayload } from "./EditCreativeModal";
 import { CreativeViewModal } from "./CreativeViewModal";
+import { ScorecardModal } from "./ScorecardModal";
 import { captureVideoFrame } from "@/lib/captureVideoFrame";
 
 const PLATFORM_CONFIG: Record<
@@ -135,6 +136,8 @@ interface CreativeCardProps {
   creative: Creative;
   index?: number;
   brandLogoUrl?: string | null;
+  /** When present, a Score button is shown on the card. */
+  campaignId?: string | null;
   onDelete?: (id: string) => void;
   onUpdate?: (id: string, patch: EditCreativePayload & { brand_name?: string; campaign_name?: string }) => void;
   /** Whether this creative is the campaign hero — shows crown in accent colour. */
@@ -143,21 +146,22 @@ interface CreativeCardProps {
   onToggleHero?: (id: string) => void;
 }
 
-export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUpdate, isHero = false, onToggleHero }: CreativeCardProps) {
+export function CreativeCard({ creative, index = 0, brandLogoUrl, campaignId, onDelete, onUpdate, isHero = false, onToggleHero }: CreativeCardProps) {
   const platform    = PLATFORM_CONFIG[creative.platform] ?? PLATFORM_CONFIG["other"];
   const PlatformIcon = platform.icon;
   const AdTypeIcon  = AD_TYPE_ICON[creative.ad_type] ?? Image;
 
   // ── Delete flow state ──────────────────────────────────────────────────────
-  const [hovered, setHovered]             = useState(false);
-  const [showModal, setShowModal]         = useState(false);
-  const [confirmText, setConfirmText]     = useState("");
-  const [isDeleting, setIsDeleting]       = useState(false);
-  const [deleteError, setDeleteError]     = useState<string | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
+  const [hovered, setHovered]                     = useState(false);
+  const [showModal, setShowModal]                 = useState(false);
+  const [confirmText, setConfirmText]             = useState("");
+  const [isDeleting, setIsDeleting]               = useState(false);
+  const [deleteError, setDeleteError]             = useState<string | null>(null);
+  const [showEditModal, setShowEditModal]         = useState(false);
+  const [showViewModal, setShowViewModal]         = useState(false);
+  const [showScorecardModal, setShowScorecardModal] = useState(false);
   // Local thumbnail — set after lazy capture for uploaded videos with no thumbnail
-  const [localThumbUrl, setLocalThumbUrl] = useState<string | null>(null);
+  const [localThumbUrl, setLocalThumbUrl]         = useState<string | null>(null);
   const thumbGenerating = useState(false);
   const [isGenThumb, setIsGenThumb]       = thumbGenerating;
 
@@ -403,6 +407,29 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
           >
             <Pencil size={12} color="#fff" />
           </button>
+
+          {/* Score button — only in campaign context */}
+          {campaignId && (
+            <button
+              onClick={() => setShowScorecardModal(true)}
+              title="Score this creative"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 28, height: 28,
+                background: "rgba(245,158,11,0.85)",
+                backdropFilter: "blur(6px)",
+                border: "1px solid rgba(245,158,11,0.4)",
+                borderRadius: "7px",
+                cursor: "pointer",
+                opacity: hovered ? 1 : 0,
+                transform: hovered ? "scale(1)" : "scale(0.8)",
+                transition: "opacity 180ms ease, transform 180ms ease",
+                pointerEvents: hovered ? "auto" : "none",
+              }}
+            >
+              <Star size={12} color="#fff" fill="#fff" />
+            </button>
+          )}
 
           {/* Delete button — reveals on hover */}
           <button
@@ -699,12 +726,21 @@ export function CreativeCard({ creative, index = 0, brandLogoUrl, onDelete, onUp
       />
     )}
 
-    {/* ── View modal ────────────────────────────────────────────────── */}
+    {/* ── View modal ──────────────────────────────────────────── */}
     {showViewModal && (
       <CreativeViewModal
         creative={creative}
         brandLogoUrl={brandLogoUrl}
         onClose={() => setShowViewModal(false)}
+      />
+    )}
+
+    {/* ── Scorecard modal ────────────────────────────────────── */}
+    {showScorecardModal && campaignId && (
+      <ScorecardModal
+        creative={creative}
+        campaignId={campaignId}
+        onClose={() => setShowScorecardModal(false)}
       />
     )}
 

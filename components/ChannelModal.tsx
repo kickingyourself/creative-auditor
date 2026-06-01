@@ -308,16 +308,18 @@ function UploadPanel({
         const reg = await fetch("/api/upload/register", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            ingest_job_id:  prepData.ingest_job_id ?? null,
             brand_id:       prepData.brand_id,
             brand_name:     prepData.brand_name,
             published_date: prepData.published_date,
-            items: successes.map((u: { storagePath: string; contentType: string; originalName: string; resolvedThumbPath?: string | null }) => ({
+            items: successes.map((u: { storagePath: string; contentType: string; originalName: string; resolvedThumbPath?: string | null; fileSizeBytes?: number }) => ({
               storagePath:          u.storagePath,
               contentType:          u.contentType,
               platform,
               campaignId:           campaignId ?? null,
               originalName:         u.originalName,
               thumbnailStoragePath: u.resolvedThumbPath ?? null,
+              fileSizeBytes:        u.fileSizeBytes ?? null,
             })),
           }),
         });

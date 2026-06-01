@@ -1,8 +1,8 @@
 /**
  * database.types.ts
  *
- * Hand-authored TypeScript types that map 1-to-1 with the SQL schema
- * defined in supabase/migrations/001_initial_schema.sql.
+ * Hand-authored TypeScript types that map 1-to-1 with the SQL schema.
+ * Updated to reflect Medallion Bronze/Silver columns added in migrations 011-013.
  *
  * Usage with the Supabase client:
  *   import { createClient } from '@supabase/supabase-js'
@@ -11,19 +11,36 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Enum
+// Enums — map to Postgres CHECK constraints or enum types
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Maps to the `platform_type` Postgres enum.
- *  'homepage' = legacy value still in DB; app layer normalises to 'landing_page' on read.
- *  Run this in Supabase SQL editor to enable all platform types:
- *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'landing_page';
- *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'programmatic';
- *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'ooh';
- *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'tvc';
- *    ALTER TYPE platform_type ADD VALUE IF NOT EXISTS 'meta';
- */
-export type PlatformType = 'youtube' | 'tiktok' | 'landing_page' | 'homepage' | 'social' | 'pinterest' | 'programmatic' | 'ooh' | 'tvc' | 'meta';
+/** Maps to the `platform_type` Postgres enum. */
+export type PlatformType =
+  | 'youtube' | 'tiktok' | 'landing_page' | 'homepage'
+  | 'social'  | 'pinterest' | 'programmatic'
+  | 'ooh'     | 'tvc'       | 'meta';
+
+/** Which system produced the creative (TEXT + CHECK in Postgres). */
+export type IngestSourceType =
+  | 'youtube_api' | 'meta_api'  | 'tiktok_api' | 'pinterest_api'
+  | 'pmg_alli'    | 'manual_upload' | 'web_scrape';
+
+/** Ad unit format as experienced by the viewer (TEXT + CHECK). */
+export type AdType = 'video' | 'image' | 'pdf' | 'html5' | 'zip' | 'carousel';
+
+/** Underlying file encoding (TEXT + CHECK). */
+export type FileFormatType =
+  | 'jpg' | 'png' | 'gif' | 'webp' | 'avif'
+  | 'pdf'
+  | 'mp4' | 'mov'
+  | 'html5_bundle' | 'zip'
+  | 'other';
+
+/** Creative lifecycle state (TEXT + CHECK). */
+export type CreativeStatusType = 'processing' | 'active' | 'archived' | 'error';
+
+/** src_ingest_jobs lifecycle (TEXT + CHECK). */
+export type IngestJobStatus = 'pending' | 'running' | 'done' | 'partial' | 'error';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,38 +89,41 @@ export interface CreativeRow {
   campaign_id: string | null;
   /** Source platform of the creative. */
   platform: PlatformType;
-  /** Canonical URL of the ad unit (YouTube watch URL, TikTok share URL, etc.). */
+  /** Canonical URL of the ad unit or Supabase CDN URL for uploads. @deprecated use storage_path or platform_url */
   source_url: string;
-  /**
-   * Optional user-provided title. NULL = auto-derive from source_url + platform.
-   * Added in migration 003_add_title_to_creatives.sql.
-   */
+  /** Optional user-provided title. */
   title: string | null;
-  /**
-   * Cached thumbnail URL from the creative-assets Supabase Storage bucket.
-   * Nullable until the thumbnail has been fetched and cached.
-   */
+  /** Cached thumbnail URL from Supabase Storage. */
   thumbnail_url: string | null;
-  /**
-   * Total view count at last sync. Uses number (JS safe integer).
-   * Nullable if not yet fetched.
-   */
+
+  // ── Silver enrichment (migrations 011-013) ───────────────────────────────
+  /** Which system produced this creative. NULL for legacy rows. */
+  ingest_source: IngestSourceType | null;
+  /** FK → src_ingest_jobs.id. NULL for legacy rows. */
+  ingest_job_id: string | null;
+  /** Supabase Storage path for uploaded files. NULL for API-sourced creatives. */
+  storage_path: string | null;
+  /** Ad unit format as experienced by the viewer. */
+  ad_type: AdType | null;
+  /** Underlying file encoding. */
+  file_format: FileFormatType | null;
+  /** Lifecycle state. Defaults to 'active'. */
+  status: CreativeStatusType;
+
+  // ── Metrics (deprecated — moving to fct_creative_metrics) ───────────────
+  /** @deprecated Use fct_creative_metrics for time-series data. */
   view_count: number | null;
-  /**
-   * Engagement rate as a decimal fraction (e.g. 0.0342 = 3.42%).
-   * Stored as numeric(5,4) in Postgres; returned as string by some drivers —
-   * parse with parseFloat() if you need arithmetic.
-   * Nullable if not yet computed.
-   */
+  /** @deprecated Use fct_creative_metrics for time-series data. */
   engagement_rate: number | null;
-  /**
-   * When the asset was originally published on its source platform
-   * (e.g. YouTube video publishedAt, Pinterest pin date).
-   * NULL for uploaded assets that have no platform-posted date.
-   */
+
+  /** When the asset was originally published on its source platform. */
   posted_at: string | null;
-  /** ISO-8601 timestamp of record creation (with timezone). */
+  /** Display sort order within (campaign_id, platform). */
+  sort_order: number | null;
+  /** ISO-8601 timestamp of record creation. */
   created_at: string;
+  /** ISO-8601 timestamp of last modification (auto-updated by trigger). */
+  updated_at: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,9 +160,16 @@ export interface CreativeInsert {
   source_url: string;
   title?: string | null;
   thumbnail_url?: string | null;
+  // Silver columns
+  ingest_source?: IngestSourceType | null;
+  ingest_job_id?: string | null;
+  storage_path?: string | null;
+  ad_type?: AdType | null;
+  file_format?: FileFormatType | null;
+  status?: CreativeStatusType;
+  // Deprecated metrics
   view_count?: number | null;
   engagement_rate?: number | null;
-  /** ISO-8601 timestamp (or date string) of when the asset was posted on its platform. Optional; leave unset for uploads. */
   posted_at?: string | null;
   created_at?: string;
 }
