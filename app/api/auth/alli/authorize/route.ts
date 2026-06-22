@@ -14,7 +14,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { ALLI_MCP_BASE_URL, ALLI_LOGIN_BASE_URL, ALLI_OAUTH_CLIENT_ID } from "@/lib/alli-mcp";
+import { ALLI_LOGIN_BASE_URL, ALLI_OAUTH_CLIENT_ID } from "@/lib/alli-mcp";
 
 function getDb() {
   return createClient(
@@ -65,34 +65,18 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({ error: "Failed to persist OAuth state." }, { status: 500 });
   }
 
-  // ── 5. Try to discover the client_id via DCR shim (falls back to env/const) ─
-  let clientId = ALLI_OAUTH_CLIENT_ID;
-  try {
-    const dcrRes = await fetch(`${ALLI_MCP_BASE_URL}/oauth/register`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({
-        redirect_uris:           [getRedirectUri(req)],
-        token_endpoint_auth_method: "none",
-        grant_types:             ["authorization_code"],
-        response_types:          ["code"],
-      }),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (dcrRes.ok) {
-      const dcrData = await dcrRes.json();
-      if (dcrData.client_id) clientId = dcrData.client_id as string;
-    }
-  } catch {
-    // DCR failed — use the known pre-registered client ID
-  }
+  // ── 5. Use the pre-registered native OAuth client ID ─────────────────────
+  // The DCR shim at /oauth/register returns a dynamically-registered client_id
+  // that Alli's login server does not recognise as a valid native app client.
+  // Always use the known pre-registered ID (from env or the production constant).
+  const clientId = ALLI_OAUTH_CLIENT_ID;
 
   // ── 6. Build authorization URL ─────────────────────────────────────────────
   const params = new URLSearchParams({
     response_type:          "code",
     client_id:              clientId,
     redirect_uri:           getRedirectUri(req),
-    scope:                  "openid profile email offline_access",
+    scope:                  "openid profile email",
     state,
     code_challenge:         codeChallenge,
     code_challenge_method:  "S256",
