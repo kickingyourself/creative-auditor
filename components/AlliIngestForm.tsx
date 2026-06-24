@@ -364,7 +364,7 @@ export function AlliIngestForm({ brandId, brandName }: AlliIngestFormProps) {
         </label>
         <CampaignPicker
           brandId={brandId}
-          value={campaignId}
+          instanceId="alli-ingest"
           onChange={(opt: CampaignOption | null) => setCampaignId(opt?.id ?? null)}
         />
       </div>
