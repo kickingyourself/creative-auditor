@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, PlayCircle } from "lucide-react";
+import { Globe, PlayCircle, Zap } from "lucide-react";
 import { ScrapeForm } from "@/components/ScrapeForm";
 import { YouTubeIngestForm } from "@/components/YouTubeIngestForm";
 import { FacebookIngestForm } from "@/components/FacebookIngestForm";
 import { InstagramIngestForm } from "@/components/InstagramIngestForm";
 import { PinterestIngestForm } from "@/components/PinterestIngestForm";
+import { AlliIngestForm } from "@/components/AlliIngestForm";
 
 // ─── Brand SVG icons (lucide-react doesn't ship Facebook/Instagram) ───────────
 function FbIcon({ size = 13 }: { size?: number }) {
@@ -24,7 +25,7 @@ function IgIcon({ size = 13 }: { size?: number }) {
   );
 }
 
-type Platform = "landing_page" | "youtube" | "facebook" | "instagram" | "pinterest";
+type Platform = "landing_page" | "youtube" | "facebook" | "instagram" | "pinterest" | "pmg_alli";
 
 interface Tab {
   id: Platform;
@@ -79,6 +80,14 @@ const TABS: Tab[] = [
     color: "var(--color-text-secondary)",
     activeColor: "#e60023",
     activeBg: "rgba(230,0,35,0.10)",
+  },
+  {
+    id: "pmg_alli",
+    label: "Alli",
+    icon: <Zap size={13} />,
+    color: "var(--color-text-secondary)",
+    activeColor: "#4f6ef7",
+    activeBg: "rgba(79,110,247,0.10)",
   },
 ];
 
@@ -151,6 +160,7 @@ export function BrandIngestPanel({ brandId, brandName }: BrandIngestPanelProps) 
         {active === "facebook"  && <FacebookIngestForm brandId={brandId} brandName={brandName} />}
         {active === "instagram" && <InstagramIngestForm brandId={brandId} brandName={brandName} />}
         {active === "pinterest" && <PinterestIngestForm brandId={brandId} brandName={brandName} />}
+        {active === "pmg_alli"  && <AlliIngestForm brandId={brandId} brandName={brandName} />}
       </div>
 
       <style>{`
