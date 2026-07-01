@@ -52,7 +52,8 @@ export async function authenticate(
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
-    // secure: true — enable in production (requires HTTPS)
+    // secure in production (Vercel is always HTTPS); skip for local http dev
+    secure: process.env.NODE_ENV === "production",
   });
 
   // ── 5. Redirect to intended destination ─────────────────────────────────────
