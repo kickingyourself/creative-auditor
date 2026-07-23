@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
    * Listing them here tells Next.js to require() them at runtime instead.
    */
   serverExternalPackages: ["@sparticuz/chromium-min", "playwright-core"],
+
+
 };
 
 export default nextConfig;

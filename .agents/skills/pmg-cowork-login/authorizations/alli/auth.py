@@ -38,7 +38,8 @@ class AuthHandler(BaseHTTPRequestHandler):
                 'client_id': self.client_id,
                 'redirect_uri': REDIRECT_URI,
                 'code': code,
-                'code_verifier': code_verifier
+                'code_verifier': code_verifier,
+                'resource': 'https://mcp.alliplatform.com',
             }
             
             try:
@@ -119,7 +120,8 @@ def main():
         'response_type': 'code',
         'scope': 'openid email profile',
         'code_challenge': code_challenge,
-        'code_challenge_method': 'S256'
+        'code_challenge_method': 'S256',
+        'resource': 'https://mcp.alliplatform.com',
     }
     
     auth_url = f"https://login.alliplatform.com/authorize?{urllib.parse.urlencode(auth_params)}"

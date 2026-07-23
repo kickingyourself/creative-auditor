@@ -46,10 +46,10 @@ export async function POST(req: Request): Promise<Response> {
       const meData = await meRes.json();
       const text = meData?.result?.content?.[0]?.text ?? "{}";
       try { userInfo = JSON.parse(text); } catch { /* ignore */ }
-    } else if (meRes.status === 401) {
-      return Response.json({ error: "Token rejected by Alli — invalid or expired." }, { status: 401 });
     }
-    // Non-401 errors (404, 502 etc.) — token may still be valid, continue
+    // Non-2xx responses (including 401) — store the token anyway.
+    // The token may be valid for REST APIs but not the MCP alli_central prefix,
+    // or the MCP server may be temporarily unavailable.
   } catch {
     // Network error during validation — store the token anyway with a warning
     userInfo = {};
